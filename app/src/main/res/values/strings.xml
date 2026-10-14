@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Vocab Match</string>
+    <string name="app_subtitle">4-Letter Vocabulary Deduction Game</string>
+    
+    <string name="section_stats_title">Performance &amp; Aggregates</string>
+    <string name="label_aggregated_points">Aggregated Points</string>
+    <string name="label_avg_guesses">Average Guesses</string>
+    <string name="label_total_games">Games Won</string>
+    <string name="label_avg_points">Avg Pts / Game</string>
+    <string name="btn_reset_stats">Reset Stats</string>
+    
+    <string name="status_secret_chosen">Computer has chosen a secret 4-letter word. Start guessing!</string>
+    <string name="status_feedback_format">"%1$s": %2$d letters matching with secret word.</string>
+    <string name="status_game_won">Solved! Secret word was %1$s in %2$d guesses (%3$.1f points).</string>
+    
+    <string name="hint_enter_word">4-letter word</string>
+    <string name="btn_guess">Guess</string>
+    <string name="btn_new_game">New Game</string>
+    
+    <string name="section_history_title">Guess History</string>
+    <string name="history_empty_hint">No guesses submitted yet. Type a 4-letter word above!</string>
+    
+    <string name="feedback_exact_word">Word matched!</string>
+    <string name="feedback_all_matched">All 4 letters in correct position</string>
+    
+    <string name="err_enter_4_letters">Please enter exactly 4 letters.</string>
+    <string name="err_only_letters">Only alphabetic letters are permitted.</string>
+    <string name="err_not_meaningful_word">"%1$s" is not recognized as a valid 4-letter word.</string>
+    
+    <string name="confirm_new_game_title">Start New Game?</string>
+    <string name="confirm_new_game_msg">The current secret word has not been guessed yet. Do you want to forfeit and start fresh?</string>
+    <string name="yes">Yes</string>
+    <string name="cancel">Cancel</string>
+    
+    <string name="reset_stats_title">Reset Stored Database Stats?</string>
+    <string name="reset_stats_msg">This will clear all game history and reset aggregated points and average guess metrics to 0.</string>
+    <string name="reset">Reset</string>
+    <string name="stats_reset_success">Database statistics have been reset.</string>
+
+    <plurals name="letters_matching_format">
+        <item quantity="one">%1$d letter matching</item>
+        <item quantity="other">%1$d letters matching</item>
+    </plurals>
+
+    <plurals name="positions_exact_format">
+        <item quantity="one">(%1$d in place)</item>
+        <item quantity="other">(%1$d in place)</item>
+    </plurals>
+</resources>

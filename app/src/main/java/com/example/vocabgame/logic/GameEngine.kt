@@ -1,0 +1,132 @@
+package com.example.vocabgame.logic
+
+import com.example.vocabgame.model.GuessResult
+import kotlin.random.Random
+
+/**
+ * Handles core game mechanics:
+ * - Secret word selection from dictionary.
+ * - Validation of input guesses.
+ * - Matching letter calculation (multiset intersection count).
+ * - Exact position match calculation.
+ * - Score calculation (100 / number of guesses).
+ */
+class GameEngine(private val wordDictionary: Set<String>) {
+
+    var secretWord: String = ""
+        private set
+
+    var guessCount: Int = 0
+        private set
+
+    var isGameOver: Boolean = false
+        private set
+
+    val guessHistory = mutableListOf<GuessResult>()
+
+    /**
+     * Initializes or restarts the game by picking a random 4-letter word.
+     */
+    fun startNewGame(): String {
+        require(wordDictionary.isNotEmpty()) { "Dictionary cannot be empty" }
+        val wordsList = wordDictionary.toList()
+        secretWord = wordsList[Random.nextInt(wordsList.size)].uppercase()
+        guessCount = 0
+        isGameOver = false
+        guessHistory.clear()
+        return secretWord
+    }
+
+    /**
+     * Specifically sets a secret word (useful for automated testing).
+     */
+    fun setCustomSecretWord(word: String) {
+        secretWord = word.uppercase()
+        guessCount = 0
+        isGameOver = false
+        guessHistory.clear()
+    }
+
+    /**
+     * Verifies whether a given word is in the dictionary.
+     */
+    fun isValidDictionaryWord(word: String): Boolean {
+        return wordDictionary.contains(word.uppercase())
+    }
+
+    /**
+     * Evaluates a user guess against the secret word.
+     */
+    fun evaluateGuess(guess: String): GuessResult {
+        check(!isGameOver) { "Game is already over. Start a new game." }
+        val upperGuess = guess.uppercase()
+        guessCount++
+
+        val matchingCount = countMatchingLetters(secretWord, upperGuess)
+        val exactPositions = countExactPositions(secretWord, upperGuess)
+        val isCorrect = (upperGuess == secretWord)
+
+        if (isCorrect) {
+            isGameOver = true
+        }
+
+        val result = GuessResult(
+            guessNumber = guessCount,
+            guessedWord = upperGuess,
+            matchingCount = matchingCount,
+            exactPositions = exactPositions,
+            isCorrect = isCorrect
+        )
+        guessHistory.add(result)
+        return result
+    }
+
+    /**
+     * Calculates the game points: 100 divided by number of guesses.
+     */
+    fun calculatePoints(): Double {
+        return if (guessCount > 0) 100.0 / guessCount else 0.0
+    }
+
+    companion object {
+        /**
+         * Calculates the count of matching letters between secret and guess.
+         * Uses multiset letter frequencies so duplicate letters are handled accurately.
+         * For example, if secret is "BEAR" and guess is "BIRD":
+         * B: 1, E: 0, A: 0, R: 1 -> Total matching letters = 2.
+         * If secret is "BOOK" and guess is "MOON":
+         * O appears twice in both -> Total matching letters = 2.
+         */
+        fun countMatchingLetters(secret: String, guess: String): Int {
+            val sFreq = IntArray(26)
+            val gFreq = IntArray(26)
+
+            for (c in secret.uppercase()) {
+                if (c in 'A'..'Z') sFreq[c - 'A']++
+            }
+            for (c in guess.uppercase()) {
+                if (c in 'A'..'Z') gFreq[c - 'A']++
+            }
+
+            var totalMatch = 0
+            for (i in 0 until 26) {
+                totalMatch += minOf(sFreq[i], gFreq[i])
+            }
+            return totalMatch
+        }
+
+        /**
+         * Calculates how many letters are matching in the exact same index position.
+         */
+        fun countExactPositions(secret: String, guess: String): Int {
+            var exact = 0
+            val len = minOf(secret.length, guess.length)
+            for (i in 0 until len) {
+                if (secret[i].uppercaseChar() == guess[i].uppercaseChar()) {
+                    exact++
+                }
+            }
+            return exact
+        }
+    }
+}
