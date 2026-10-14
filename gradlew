@@ -12,7 +12,17 @@ fi
 
 CLASSPATH="$DIRNAME/gradle/wrapper/gradle-wrapper.jar"
 if [ ! -f "$CLASSPATH" ]; then
-    # Fallback if wrapper jar is absent: try system gradle if present
+    echo "Downloading Gradle wrapper jar..."
+    mkdir -p "$DIRNAME/gradle/wrapper"
+    if command -v curl >/dev/null 2>&1; then
+        curl -fsSL https://raw.githubusercontent.com/gradle/gradle/v8.5.0/gradle/wrapper/gradle-wrapper.jar -o "$CLASSPATH" 2>/dev/null || \
+        curl -fsSL https://repo.gradle.org/artifactory/libs-releases/org/gradle/gradle-wrapper/8.5/gradle-wrapper-8.5.jar -o "$CLASSPATH" 2>/dev/null
+    elif command -v wget >/dev/null 2>&1; then
+        wget -q -O "$CLASSPATH" https://raw.githubusercontent.com/gradle/gradle/v8.5.0/gradle/wrapper/gradle-wrapper.jar 2>/dev/null
+    fi
+fi
+
+if [ ! -f "$CLASSPATH" ]; then
     if command -v gradle >/dev/null 2>&1; then
         exec gradle "$@"
     fi
