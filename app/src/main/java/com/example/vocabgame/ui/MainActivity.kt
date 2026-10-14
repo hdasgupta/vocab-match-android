@@ -3,6 +3,7 @@ package com.example.vocabgame.ui
 import android.app.Dialog
 import android.graphics.Paint
 import android.graphics.Typeface
+import android.graphics.drawable.GradientDrawable
 import android.os.Bundle
 import android.text.InputFilter
 import android.view.Gravity
@@ -101,6 +102,18 @@ class MainActivity : AppCompatActivity() {
         rvGuesses.adapter = guessAdapter
     }
 
+    /**
+     * Programmatically creates rounded stroke drawables to avoid any XML resource linking dependency.
+     */
+    private fun createLetterDrawable(bgColor: Int, strokeColor: Int): GradientDrawable {
+        val density = resources.displayMetrics.density
+        return GradientDrawable().apply {
+            cornerRadius = 8f * density
+            setColor(bgColor)
+            setStroke((1.5f * density).toInt(), strokeColor)
+        }
+    }
+
     private fun setupLetterTracker() {
         layoutLetterRows.removeAllViews()
         letterStates.clear()
@@ -137,9 +150,7 @@ class MainActivity : AppCompatActivity() {
                     textSize = 15f
                     typeface = Typeface.DEFAULT_BOLD
                     gravity = Gravity.CENTER
-                    setBackgroundResource(R.drawable.bg_letter_unselected)
-                    setTextColor(ContextCompat.getColor(this@MainActivity, R.color.text_primary))
-
+                    
                     val params = LinearLayout.LayoutParams(0, heightPx, 1f).apply {
                         setMargins(marginPx, 0, marginPx, 0)
                     }
@@ -150,6 +161,7 @@ class MainActivity : AppCompatActivity() {
                     }
                 }
                 letterViews[ch] = tv
+                updateLetterView(ch, LetterState.UNSELECTED, tv)
                 rowLayout.addView(tv)
             }
             layoutLetterRows.addView(rowLayout)
@@ -167,23 +179,32 @@ class MainActivity : AppCompatActivity() {
         updateLetterView(ch, next)
     }
 
-    private fun updateLetterView(ch: Char, state: LetterState) {
-        val view = letterViews[ch] ?: return
+    private fun updateLetterView(ch: Char, state: LetterState, view: TextView? = letterViews[ch]) {
+        val targetView = view ?: return
         when (state) {
             LetterState.UNSELECTED -> {
-                view.setBackgroundResource(R.drawable.bg_letter_unselected)
-                view.setTextColor(ContextCompat.getColor(this, R.color.text_primary))
-                view.paintFlags = view.paintFlags and Paint.STRIKE_THRU_TEXT_FLAG.inv()
+                targetView.background = createLetterDrawable(
+                    ContextCompat.getColor(this, R.color.card_background),
+                    ContextCompat.getColor(this, R.color.card_stroke)
+                )
+                targetView.setTextColor(ContextCompat.getColor(this, R.color.text_primary))
+                targetView.paintFlags = targetView.paintFlags and Paint.STRIKE_THRU_TEXT_FLAG.inv()
             }
             LetterState.SELECTED -> {
-                view.setBackgroundResource(R.drawable.bg_letter_selected)
-                view.setTextColor(ContextCompat.getColor(this, R.color.white))
-                view.paintFlags = view.paintFlags and Paint.STRIKE_THRU_TEXT_FLAG.inv()
+                targetView.background = createLetterDrawable(
+                    ContextCompat.getColor(this, R.color.primary_brand),
+                    ContextCompat.getColor(this, R.color.primary_variant)
+                )
+                targetView.setTextColor(ContextCompat.getColor(this, R.color.white))
+                targetView.paintFlags = targetView.paintFlags and Paint.STRIKE_THRU_TEXT_FLAG.inv()
             }
             LetterState.ELIMINATED -> {
-                view.setBackgroundResource(R.drawable.bg_letter_eliminated)
-                view.setTextColor(ContextCompat.getColor(this, R.color.text_secondary))
-                view.paintFlags = view.paintFlags or Paint.STRIKE_THRU_TEXT_FLAG
+                targetView.background = createLetterDrawable(
+                    ContextCompat.getColor(this, R.color.screen_background),
+                    ContextCompat.getColor(this, R.color.card_stroke)
+                )
+                targetView.setTextColor(ContextCompat.getColor(this, R.color.text_secondary))
+                targetView.paintFlags = targetView.paintFlags or Paint.STRIKE_THRU_TEXT_FLAG
             }
         }
     }

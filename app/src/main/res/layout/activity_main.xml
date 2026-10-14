@@ -358,7 +358,7 @@
                         android:orientation="vertical"
                         android:gravity="center_horizontal" />
 
-                    <!-- Legend -->
+                    <!-- Self-contained Legend using core theme colors and drawables -->
                     <LinearLayout
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
@@ -369,7 +369,7 @@
                         <View
                             android:layout_width="12dp"
                             android:layout_height="12dp"
-                            android:background="@drawable/bg_letter_unselected"
+                            android:background="@drawable/bg_stat_cell"
                             android:layout_marginEnd="4dp" />
                         <TextView
                             android:layout_width="wrap_content"
@@ -382,7 +382,7 @@
                         <View
                             android:layout_width="12dp"
                             android:layout_height="12dp"
-                            android:background="@drawable/bg_letter_selected"
+                            android:background="@color/primary_brand"
                             android:layout_marginEnd="4dp" />
                         <TextView
                             android:layout_width="wrap_content"
@@ -395,7 +395,7 @@
                         <View
                             android:layout_width="12dp"
                             android:layout_height="12dp"
-                            android:background="@drawable/bg_letter_eliminated"
+                            android:background="@color/card_stroke"
                             android:layout_marginEnd="4dp" />
                         <TextView
                             android:layout_width="wrap_content"
