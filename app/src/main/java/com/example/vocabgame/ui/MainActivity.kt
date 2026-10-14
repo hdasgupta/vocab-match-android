@@ -1,16 +1,21 @@
 package com.example.vocabgame.ui
 
 import android.app.Dialog
+import android.graphics.Paint
+import android.graphics.Typeface
 import android.os.Bundle
 import android.text.InputFilter
+import android.view.Gravity
 import android.view.View
 import android.view.inputmethod.EditorInfo
 import android.widget.Button
 import android.widget.EditText
+import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.content.ContextCompat
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.example.vocabgame.R
@@ -22,6 +27,12 @@ import java.io.InputStreamReader
 import java.util.Locale
 
 class MainActivity : AppCompatActivity() {
+
+    enum class LetterState {
+        UNSELECTED,
+        SELECTED,
+        ELIMINATED
+    }
 
     private lateinit var dbHelper: DatabaseHelper
     private lateinit var gameEngine: GameEngine
@@ -39,6 +50,12 @@ class MainActivity : AppCompatActivity() {
     private lateinit var tvEmptyHistory: TextView
     private lateinit var tvStatusHint: TextView
 
+    // Letter Tracker views and state
+    private lateinit var layoutLetterRows: LinearLayout
+    private lateinit var btnClearTracker: Button
+    private val letterStates = mutableMapOf<Char, LetterState>()
+    private val letterViews = mutableMapOf<Char, TextView>()
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
@@ -48,6 +65,7 @@ class MainActivity : AppCompatActivity() {
         gameEngine = GameEngine(dictionary)
 
         initViews()
+        setupLetterTracker()
         setupListeners()
         refreshStats()
         startNewGame()
@@ -66,6 +84,9 @@ class MainActivity : AppCompatActivity() {
         tvEmptyHistory = findViewById(R.id.tvEmptyHistory)
         tvStatusHint = findViewById(R.id.tvStatusHint)
 
+        layoutLetterRows = findViewById(R.id.layoutLetterRows)
+        btnClearTracker = findViewById(R.id.btnClearTracker)
+
         // Force uppercase input and max 4 letters
         etWordInput.filters = arrayOf(
             InputFilter.LengthFilter(4),
@@ -80,9 +101,108 @@ class MainActivity : AppCompatActivity() {
         rvGuesses.adapter = guessAdapter
     }
 
+    private fun setupLetterTracker() {
+        layoutLetterRows.removeAllViews()
+        letterStates.clear()
+        letterViews.clear()
+
+        // 4 alphabetical rows covering all 26 letters (A–Z)
+        val rows = listOf(
+            "ABCDEFG", // 7
+            "HIJKLMN", // 7
+            "OPQRSTU", // 7
+            "VWXYZ"    // 5
+        )
+
+        val density = resources.displayMetrics.density
+        val heightPx = (38 * density).toInt()
+        val marginPx = (3 * density).toInt()
+
+        for (rowStr in rows) {
+            val rowLayout = LinearLayout(this).apply {
+                orientation = LinearLayout.HORIZONTAL
+                gravity = Gravity.CENTER
+                layoutParams = LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.MATCH_PARENT,
+                    LinearLayout.LayoutParams.WRAP_CONTENT
+                ).apply {
+                    bottomMargin = (4 * density).toInt()
+                }
+            }
+
+            for (ch in rowStr) {
+                letterStates[ch] = LetterState.UNSELECTED
+                val tv = TextView(this).apply {
+                    text = ch.toString()
+                    textSize = 15f
+                    typeface = Typeface.DEFAULT_BOLD
+                    gravity = Gravity.CENTER
+                    setBackgroundResource(R.drawable.bg_letter_unselected)
+                    setTextColor(ContextCompat.getColor(this@MainActivity, R.color.text_primary))
+
+                    val params = LinearLayout.LayoutParams(0, heightPx, 1f).apply {
+                        setMargins(marginPx, 0, marginPx, 0)
+                    }
+                    layoutParams = params
+
+                    setOnClickListener {
+                        toggleLetterState(ch)
+                    }
+                }
+                letterViews[ch] = tv
+                rowLayout.addView(tv)
+            }
+            layoutLetterRows.addView(rowLayout)
+        }
+    }
+
+    private fun toggleLetterState(ch: Char) {
+        val current = letterStates[ch] ?: LetterState.UNSELECTED
+        val next = when (current) {
+            LetterState.UNSELECTED -> LetterState.SELECTED
+            LetterState.SELECTED -> LetterState.ELIMINATED
+            LetterState.ELIMINATED -> LetterState.UNSELECTED
+        }
+        letterStates[ch] = next
+        updateLetterView(ch, next)
+    }
+
+    private fun updateLetterView(ch: Char, state: LetterState) {
+        val view = letterViews[ch] ?: return
+        when (state) {
+            LetterState.UNSELECTED -> {
+                view.setBackgroundResource(R.drawable.bg_letter_unselected)
+                view.setTextColor(ContextCompat.getColor(this, R.color.text_primary))
+                view.paintFlags = view.paintFlags and Paint.STRIKE_THRU_TEXT_FLAG.inv()
+            }
+            LetterState.SELECTED -> {
+                view.setBackgroundResource(R.drawable.bg_letter_selected)
+                view.setTextColor(ContextCompat.getColor(this, R.color.white))
+                view.paintFlags = view.paintFlags and Paint.STRIKE_THRU_TEXT_FLAG.inv()
+            }
+            LetterState.ELIMINATED -> {
+                view.setBackgroundResource(R.drawable.bg_letter_eliminated)
+                view.setTextColor(ContextCompat.getColor(this, R.color.text_secondary))
+                view.paintFlags = view.paintFlags or Paint.STRIKE_THRU_TEXT_FLAG
+            }
+        }
+    }
+
+    private fun resetLetterTracker() {
+        for (ch in 'A'..'Z') {
+            letterStates[ch] = LetterState.UNSELECTED
+            updateLetterView(ch, LetterState.UNSELECTED)
+        }
+    }
+
     private fun setupListeners() {
         btnSubmitGuess.setOnClickListener {
             handleGuessSubmission()
+        }
+
+        btnClearTracker.setOnClickListener {
+            resetLetterTracker()
+            Toast.makeText(this, "Letter tracker cleared", Toast.LENGTH_SHORT).show()
         }
 
         etWordInput.setOnEditorActionListener { _, actionId, _ ->
@@ -128,6 +248,7 @@ class MainActivity : AppCompatActivity() {
         btnSubmitGuess.isEnabled = true
         guessAdapter.submitList(emptyList())
         updateHistoryVisibility()
+        resetLetterTracker()
         tvStatusHint.text = getString(R.string.status_secret_chosen)
     }
 
@@ -251,7 +372,6 @@ class MainActivity : AppCompatActivity() {
                 }
             }
         } catch (e: Exception) {
-            // Safe fallback if asset read fails
             set.addAll(listOf("WORD", "GAME", "PLAY", "READ", "WALK", "TALK", "TIME", "HOME", "LOVE", "STAR"))
         }
         return set
