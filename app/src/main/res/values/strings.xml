@@ -81,6 +81,8 @@
     <string name="chain_status_comp_surrender">Computer surrendered! No words left. Final chain: %1$d words. You won %2$d points!</string>
     <string name="confirm_surrender_title">Surrender Word Chain?</string>
     <string name="confirm_surrender_msg">Are you unable to form another valid word from \"%1$s\"? Surrendering will finalize your chain score.</string>
+    <string name="confirm_reset_chain_stats_title">Reset Chain Stats?</string>
+    <string name="confirm_reset_chain_stats_msg">This will clear all word chain records and reset average chain count and points to 0.</string>
 
     <plurals name="letters_matching_format">
         <item quantity="one">%1$d letter matching</item>
