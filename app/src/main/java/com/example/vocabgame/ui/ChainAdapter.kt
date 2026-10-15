@@ -37,6 +37,7 @@ class ChainAdapter : RecyclerView.Adapter<ChainAdapter.ChainViewHolder>() {
         private val tvWord: TextView = itemView.findViewById(R.id.tvChainWord)
         private val tvPoints: TextView = itemView.findViewById(R.id.tvChainPoints)
         private val tvPlayer: TextView = itemView.findViewById(R.id.tvChainPlayer)
+        private val tvChainWordMeaning: TextView = itemView.findViewById(R.id.tvChainWordMeaning)
 
         fun bind(item: ChainWordEntry) {
             val context = itemView.context
@@ -44,6 +45,13 @@ class ChainAdapter : RecyclerView.Adapter<ChainAdapter.ChainViewHolder>() {
 
             tvStep.text = "#${item.stepNumber}"
             tvWord.text = item.word
+
+            if (item.meaning.isNotEmpty()) {
+                tvChainWordMeaning.visibility = View.VISIBLE
+                tvChainWordMeaning.text = item.meaning
+            } else {
+                tvChainWordMeaning.visibility = View.GONE
+            }
 
             if (item.player == PlayerType.USER) {
                 tvPlayer.text = "You"

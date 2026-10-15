@@ -12,5 +12,6 @@ data class ChainWordEntry(
     val stepNumber: Int,
     val word: String,
     val player: PlayerType,
-    val pointsAwarded: Int
+    val pointsAwarded: Int,
+    val meaning: String = ""
 )

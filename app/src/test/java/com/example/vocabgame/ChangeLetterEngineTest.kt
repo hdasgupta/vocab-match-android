@@ -32,11 +32,12 @@ class ChangeLetterEngineTest {
     }
 
     @Test
-    fun testUserPlayWord_SuccessAwardsTwoPoints() {
+    fun testUserPlayWord_SuccessAwardsTwoPointsAndAttachesMeaning() {
         engine.startNewGame("COLD")
         assertEquals("COLD", engine.currentWord)
         assertEquals(0, engine.userPoints)
         assertEquals(1, engine.chainHistory.size)
+        assertTrue("Starting word must have a meaning", engine.chainHistory[0].meaning.isNotEmpty())
 
         // User plays CORD (differs by 1 letter)
         val result = engine.playUserWord("CORD")
@@ -46,6 +47,8 @@ class ChangeLetterEngineTest {
         assertEquals(2, success.totalPoints)
         assertEquals("CORD", engine.currentWord)
         assertEquals(2, engine.chainHistory.size)
+        assertTrue("User played word must have a meaning", engine.chainHistory[1].meaning.isNotEmpty())
+        assertEquals(engine.chainHistory[1].meaning, success.meaning)
     }
 
     @Test
@@ -71,7 +74,7 @@ class ChangeLetterEngineTest {
     }
 
     @Test
-    fun testComputerTurn_FindsValidMove() {
+    fun testComputerTurn_FindsValidMoveAndAttachesMeaning() {
         engine.startNewGame("COLD")
         engine.playUserWord("CORD") // user turn
 
@@ -80,6 +83,7 @@ class ChangeLetterEngineTest {
         val played = compResult as ComputerPlayResult.Played
         assertTrue(played.computerWord in listOf("CARD", "WORD"))
         assertEquals(played.computerWord, engine.currentWord)
+        assertTrue("Computer played word must have a meaning", played.meaning.isNotEmpty())
     }
 
     @Test

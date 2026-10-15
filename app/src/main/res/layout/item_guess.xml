@@ -15,69 +15,86 @@
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        android:gravity="center_vertical"
+        android:orientation="vertical"
         android:paddingHorizontal="14dp"
         android:paddingVertical="10dp">
 
-        <!-- Guess badge number -->
-        <TextView
-            android:id="@+id/tvGuessNumber"
-            android:layout_width="38dp"
-            android:layout_height="38dp"
-            android:background="@drawable/bg_badge_circle"
-            android:textColor="@color/primary_brand"
-            android:textStyle="bold"
-            android:textSize="14sp"
-            android:gravity="center"
-            android:text="#1" />
-
-        <Space
-            android:layout_width="14dp"
-            android:layout_height="wrap_content" />
-
-        <!-- Guessed 4-letter word -->
-        <TextView
-            android:id="@+id/tvGuessedWord"
-            android:layout_width="80dp"
-            android:layout_height="wrap_content"
-            android:text="WORD"
-            android:fontFamily="monospace"
-            android:textStyle="bold"
-            android:textSize="20sp"
-            android:letterSpacing="0.1"
-            android:textColor="@color/text_primary" />
-
-        <Space
-            android:layout_width="10dp"
-            android:layout_height="wrap_content" />
-
-        <!-- Feedback details -->
         <LinearLayout
-            android:layout_width="0dp"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:orientation="vertical"
-            android:gravity="end">
+            android:orientation="horizontal"
+            android:gravity="center_vertical">
 
+            <!-- Guess badge number -->
             <TextView
-                android:id="@+id/tvMatchFeedback"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="2 letters matching"
+                android:id="@+id/tvGuessNumber"
+                android:layout_width="38dp"
+                android:layout_height="38dp"
+                android:background="@drawable/bg_badge_circle"
+                android:textColor="@color/primary_brand"
                 android:textStyle="bold"
                 android:textSize="14sp"
-                android:textColor="@color/accent_purple" />
+                android:gravity="center"
+                android:text="#1" />
 
+            <Space
+                android:layout_width="14dp"
+                android:layout_height="wrap_content" />
+
+            <!-- Guessed 4-letter word -->
             <TextView
-                android:id="@+id/tvPositionsFeedback"
+                android:id="@+id/tvGuessedWord"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="(1 in exact position)"
-                android:textSize="12sp"
-                android:textColor="@color/text_secondary" />
+                android:text="WORD"
+                android:fontFamily="monospace"
+                android:textStyle="bold"
+                android:textSize="20sp"
+                android:letterSpacing="0.1"
+                android:textColor="@color/text_primary" />
+
+            <Space
+                android:layout_width="10dp"
+                android:layout_height="wrap_content" />
+
+            <!-- Feedback details -->
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:orientation="vertical"
+                android:gravity="end">
+
+                <TextView
+                    android:id="@+id/tvMatchFeedback"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="2 letters matching"
+                    android:textStyle="bold"
+                    android:textSize="14sp"
+                    android:textColor="@color/accent_purple" />
+
+                <TextView
+                    android:id="@+id/tvPositionsFeedback"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="(1 in exact position)"
+                    android:textSize="12sp"
+                    android:textColor="@color/text_secondary" />
+
+            </LinearLayout>
 
         </LinearLayout>
+
+        <!-- Word Meaning -->
+        <TextView
+            android:id="@+id/tvGuessMeaning"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:textSize="12sp"
+            android:textColor="@color/text_secondary"
+            android:layout_marginTop="6dp"
+            android:lineSpacingExtra="2dp" />
 
     </LinearLayout>
 

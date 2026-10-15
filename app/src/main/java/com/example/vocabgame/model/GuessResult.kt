@@ -8,11 +8,13 @@ package com.example.vocabgame.model
  * @property matchingCount The count of letters in the guess matching the secret word (multiset intersection).
  * @property exactPositions The count of letters in the exact correct position.
  * @property isCorrect True if the guess matches the secret word completely.
+ * @property meaning The dictionary definition / meaning of the guessed word.
  */
 data class GuessResult(
     val guessNumber: Int,
     val guessedWord: String,
     val matchingCount: Int,
     val exactPositions: Int,
-    val isCorrect: Boolean
+    val isCorrect: Boolean,
+    val meaning: String = ""
 )

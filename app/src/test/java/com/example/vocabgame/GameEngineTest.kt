@@ -46,6 +46,7 @@ class GameEngineTest {
         val r1 = engine.evaluateGuess("GAME")
         assertFalse(r1.isCorrect)
         assertFalse(engine.isGameOver)
+        assertTrue(r1.meaning.isNotEmpty())
 
         // Guess 2: correct
         val r2 = engine.evaluateGuess("WORD")

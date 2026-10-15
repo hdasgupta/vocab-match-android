@@ -1,5 +1,6 @@
 package com.example.vocabgame.logic
 
+import com.example.vocabgame.data.WordMeanings
 import com.example.vocabgame.model.GuessResult
 import kotlin.random.Random
 
@@ -10,6 +11,7 @@ import kotlin.random.Random
  * - Matching letter calculation (multiset intersection count).
  * - Exact position match calculation.
  * - Score calculation (100 / number of guesses).
+ * - Meaning retrieval for each guessed word.
  */
 class GameEngine(private val wordDictionary: Set<String>) {
 
@@ -78,7 +80,7 @@ class GameEngine(private val wordDictionary: Set<String>) {
     }
 
     /**
-     * Evaluates a user guess against the secret word.
+     * Evaluates a user guess against the secret word and attaches the word's dictionary meaning.
      */
     fun evaluateGuess(guess: String): GuessResult {
         check(!isGameOver) { "Game is already over. Start a new game." }
@@ -88,6 +90,7 @@ class GameEngine(private val wordDictionary: Set<String>) {
         val matchingCount = countMatchingLetters(secretWord, upperGuess)
         val exactPositions = countExactPositions(secretWord, upperGuess)
         val isCorrect = (upperGuess == secretWord)
+        val meaning = WordMeanings.getMeaning(upperGuess)
 
         if (isCorrect) {
             isGameOver = true
@@ -98,7 +101,8 @@ class GameEngine(private val wordDictionary: Set<String>) {
             guessedWord = upperGuess,
             matchingCount = matchingCount,
             exactPositions = exactPositions,
-            isCorrect = isCorrect
+            isCorrect = isCorrect,
+            meaning = meaning
         )
         guessHistory.add(result)
         return result

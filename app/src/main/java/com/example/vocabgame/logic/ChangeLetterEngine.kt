@@ -1,16 +1,17 @@
 package com.example.vocabgame.logic
 
+import com.example.vocabgame.data.WordMeanings
 import com.example.vocabgame.model.ChainWordEntry
 import com.example.vocabgame.model.PlayerType
 import kotlin.random.Random
 
 sealed class UserPlayResult {
-    data class Success(val playedWord: String, val pointsAwarded: Int, val totalPoints: Int) : UserPlayResult()
+    data class Success(val playedWord: String, val pointsAwarded: Int, val totalPoints: Int, val meaning: String) : UserPlayResult()
     data class Error(val message: String) : UserPlayResult()
 }
 
 sealed class ComputerPlayResult {
-    data class Played(val computerWord: String, val chainLength: Int) : ComputerPlayResult()
+    data class Played(val computerWord: String, val chainLength: Int, val meaning: String) : ComputerPlayResult()
     data class Surrendered(val reason: String, val finalChainLength: Int, val userPoints: Int) : ComputerPlayResult()
 }
 
@@ -22,6 +23,7 @@ sealed class ComputerPlayResult {
  * - Words cannot repeat in the chain.
  * - Player earns +2 points for each valid word created.
  * - Game ends when either player or computer surrenders because no words can be formed.
+ * - Word meanings are provided for each word in the chain.
  */
 class ChangeLetterEngine(private val wordDictionary: Set<String>) {
 
@@ -53,7 +55,16 @@ class ChangeLetterEngine(private val wordDictionary: Set<String>) {
 
         currentWord = initial
         usedWords.add(initial)
-        chainHistory.add(ChainWordEntry(stepNumber = 1, word = initial, player = PlayerType.COMPUTER, pointsAwarded = 0))
+        val initialMeaning = WordMeanings.getMeaning(initial)
+        chainHistory.add(
+            ChainWordEntry(
+                stepNumber = 1,
+                word = initial,
+                player = PlayerType.COMPUTER,
+                pointsAwarded = 0,
+                meaning = initialMeaning
+            )
+        )
 
         return currentWord
     }
@@ -108,9 +119,18 @@ class ChangeLetterEngine(private val wordDictionary: Set<String>) {
         userPoints += 2
         usedWords.add(upper)
         currentWord = upper
-        chainHistory.add(ChainWordEntry(stepNumber = chainHistory.size + 1, word = upper, player = PlayerType.USER, pointsAwarded = 2))
+        val meaning = WordMeanings.getMeaning(upper)
+        chainHistory.add(
+            ChainWordEntry(
+                stepNumber = chainHistory.size + 1,
+                word = upper,
+                player = PlayerType.USER,
+                pointsAwarded = 2,
+                meaning = meaning
+            )
+        )
 
-        return UserPlayResult.Success(upper, 2, userPoints)
+        return UserPlayResult.Success(upper, 2, userPoints, meaning)
     }
 
     /**
@@ -135,9 +155,18 @@ class ChangeLetterEngine(private val wordDictionary: Set<String>) {
         val chosen = candidates[Random.nextInt(candidates.size)]
         usedWords.add(chosen)
         currentWord = chosen
-        chainHistory.add(ChainWordEntry(stepNumber = chainHistory.size + 1, word = chosen, player = PlayerType.COMPUTER, pointsAwarded = 0))
+        val compMeaning = WordMeanings.getMeaning(chosen)
+        chainHistory.add(
+            ChainWordEntry(
+                stepNumber = chainHistory.size + 1,
+                word = chosen,
+                player = PlayerType.COMPUTER,
+                pointsAwarded = 0,
+                meaning = compMeaning
+            )
+        )
 
-        return ComputerPlayResult.Played(chosen, chainHistory.size)
+        return ComputerPlayResult.Played(chosen, chainHistory.size, compMeaning)
     }
 
     fun surrenderUser(): Int {

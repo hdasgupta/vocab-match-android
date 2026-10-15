@@ -121,6 +121,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var btnResetChainStats: Button
 
     private lateinit var tvChainCurrentWord: TextView
+    private lateinit var tvChainCurrentMeaning: TextView
     private lateinit var tvChainCurrentLength: TextView
     private lateinit var tvChainGamePoints: TextView
     private lateinit var tvChainStatus: TextView
@@ -203,6 +204,7 @@ class MainActivity : AppCompatActivity() {
         btnResetChainStats = findViewById(R.id.btnResetChainStats)
 
         tvChainCurrentWord = findViewById(R.id.tvChainCurrentWord)
+        tvChainCurrentMeaning = findViewById(R.id.tvChainCurrentMeaning)
         tvChainCurrentLength = findViewById(R.id.tvChainCurrentLength)
         tvChainGamePoints = findViewById(R.id.tvChainGamePoints)
         tvChainStatus = findViewById(R.id.tvChainStatus)
@@ -796,6 +798,9 @@ class MainActivity : AppCompatActivity() {
 
     private fun updateChainViews() {
         tvChainCurrentWord.text = chainEngine.currentWord
+        val meaning = WordMeanings.getMeaning(chainEngine.currentWord)
+        tvChainCurrentMeaning.text = "Definition: $meaning"
+
         val count = chainEngine.chainHistory.size
         tvChainCurrentLength.text = "Chain: $count word${if (count != 1) "s" else ""}"
         tvChainGamePoints.text = "This Game: ${chainEngine.userPoints} pts"
@@ -902,7 +907,7 @@ class MainActivity : AppCompatActivity() {
 
         val historyList = ArrayList<String>()
         for (item in gameEngine.guessHistory) {
-            historyList.add("${item.guessNumber}|${item.guessedWord}|${item.matchingCount}|${item.exactPositions}|${item.isCorrect}")
+            historyList.add("${item.guessNumber}|${item.guessedWord}|${item.matchingCount}|${item.exactPositions}|${item.isCorrect}|${item.meaning}")
         }
         outState.putStringArrayList(KEY_GUESS_HISTORY, historyList)
 
@@ -920,7 +925,7 @@ class MainActivity : AppCompatActivity() {
 
         val chainHistoryList = ArrayList<String>()
         for (item in chainEngine.chainHistory) {
-            chainHistoryList.add("${item.stepNumber}|${item.word}|${item.player.name}|${item.pointsAwarded}")
+            chainHistoryList.add("${item.stepNumber}|${item.word}|${item.player.name}|${item.pointsAwarded}|${item.meaning}")
         }
         outState.putStringArrayList(KEY_CHAIN_HISTORY, chainHistoryList)
 
@@ -938,14 +943,17 @@ class MainActivity : AppCompatActivity() {
         val restoredHistory = mutableListOf<com.example.vocabgame.model.GuessResult>()
         for (raw in historyStrings) {
             val parts = raw.split("|")
-            if (parts.size == 5) {
+            if (parts.size >= 5) {
+                val word = parts[1]
+                val meaning = if (parts.size >= 6 && parts[5].isNotEmpty()) parts[5] else WordMeanings.getMeaning(word)
                 restoredHistory.add(
                     com.example.vocabgame.model.GuessResult(
                         guessNumber = parts[0].toIntOrNull() ?: 1,
-                        guessedWord = parts[1],
+                        guessedWord = word,
                         matchingCount = parts[2].toIntOrNull() ?: 0,
                         exactPositions = parts[3].toIntOrNull() ?: 0,
-                        isCorrect = parts[4].toBoolean()
+                        isCorrect = parts[4].toBoolean(),
+                        meaning = meaning
                     )
                 )
             }
@@ -1004,13 +1012,16 @@ class MainActivity : AppCompatActivity() {
         val restoredChainHistory = mutableListOf<ChainWordEntry>()
         for (raw in rawChainHistory) {
             val parts = raw.split("|")
-            if (parts.size == 4) {
+            if (parts.size >= 4) {
+                val word = parts[1]
+                val meaning = if (parts.size >= 5 && parts[4].isNotEmpty()) parts[4] else WordMeanings.getMeaning(word)
                 restoredChainHistory.add(
                     ChainWordEntry(
                         stepNumber = parts[0].toIntOrNull() ?: 1,
-                        word = parts[1],
+                        word = word,
                         player = if (parts[2] == "USER") PlayerType.USER else PlayerType.COMPUTER,
-                        pointsAwarded = parts[3].toIntOrNull() ?: 0
+                        pointsAwarded = parts[3].toIntOrNull() ?: 0,
+                        meaning = meaning
                     )
                 )
             }
