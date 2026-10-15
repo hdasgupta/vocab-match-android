@@ -23,17 +23,20 @@ sealed class RearrangeSubmitResult {
  * Game engine for the "Rearrange" (Anagram) vocabulary game.
  *
  * Rules:
- * - Computer chooses a 4-letter word that can be rearranged into at least 2 other valid words
- *   (total anagram set size >= 3 words).
- * - User rearranges the 4 letters to form valid words.
- * - 1st word found = 25 points.
+ * - 4 letters are presented unarranged (scrambled).
+ * - The letters can be rearranged into at least 3 valid meaningful words (total anagram group size >= 3).
+ * - All words (including the first word) are unarranged and available to be discovered by the player.
+ * - 1st correct word found = 25 points.
  * - Every additional word doubles the points (2 words = 50 pts, 3 words = 100 pts, etc.).
- * - $Points = 25 \times 2^{N-1}$ for $N \ge 1$ words found.
+ * - Points formula: $Points = 25 \times 2^{N-1}$ for $N \ge 1$ words found.
  */
 class RearrangeEngine(private val wordDictionary: Set<String>) {
 
-    // Maps sorted letter signatures to sets of valid anagram words
+    // Maps sorted letter signatures to lists of valid anagram words
     private val eligibleAnagramGroups: Map<String, List<String>>
+
+    var scrambledLetters: String = ""
+        private set
 
     var baseWord: String = ""
         private set
@@ -52,7 +55,7 @@ class RearrangeEngine(private val wordDictionary: Set<String>) {
                 groups.getOrPut(sig) { mutableListOf() }.add(w)
             }
         }
-        // Retain only groups with at least 3 words (1 base word + at least 2 other rearrangements)
+        // Retain only groups with at least 3 words so there are >= 3 rearrangeable words
         eligibleAnagramGroups = groups.filterValues { it.size >= 3 }
     }
 
@@ -63,27 +66,31 @@ class RearrangeEngine(private val wordDictionary: Set<String>) {
         allPossibleAnagrams.clear()
         isGameOver = false
 
+        val wordsInGroup: List<String>
         if (!customBaseWord.isNullOrBlank()) {
             val upper = customBaseWord.trim().uppercase(Locale.US)
             val sig = getSignature(upper)
-            val wordsInGroup = eligibleAnagramGroups[sig] ?: listOf(upper)
+            wordsInGroup = eligibleAnagramGroups[sig] ?: listOf(upper)
             baseWord = upper
-            allPossibleAnagrams.addAll(wordsInGroup.filter { it != baseWord })
         } else {
             val eligibleKeys = eligibleAnagramGroups.keys.toList()
             val chosenKey = eligibleKeys[Random.nextInt(eligibleKeys.size)]
-            val wordsInGroup = eligibleAnagramGroups.getValue(chosenKey)
-            
-            // Pick a base word from the group
+            wordsInGroup = eligibleAnagramGroups.getValue(chosenKey)
             baseWord = wordsInGroup[Random.nextInt(wordsInGroup.size)]
-            allPossibleAnagrams.addAll(wordsInGroup.filter { it != baseWord })
         }
 
-        return baseWord
+        // All words in the group (including the first word) are available to be rearranged and found
+        allPossibleAnagrams.addAll(wordsInGroup)
+
+        // Generate unarranged / scrambled letters
+        scrambledLetters = generateScrambledLetters(baseWord)
+
+        return scrambledLetters
     }
 
-    fun restoreState(base: String, found: Set<String>, gameOver: Boolean) {
+    fun restoreState(scrambled: String, base: String, found: Set<String>, gameOver: Boolean) {
         baseWord = base.uppercase(Locale.US)
+        scrambledLetters = if (scrambled.isNotBlank()) scrambled.uppercase(Locale.US) else generateScrambledLetters(baseWord)
         foundWords.clear()
         foundWords.addAll(found)
         isGameOver = gameOver
@@ -91,7 +98,7 @@ class RearrangeEngine(private val wordDictionary: Set<String>) {
         allPossibleAnagrams.clear()
         val sig = getSignature(baseWord)
         val wordsInGroup = eligibleAnagramGroups[sig] ?: listOf()
-        allPossibleAnagrams.addAll(wordsInGroup.filter { it != baseWord })
+        allPossibleAnagrams.addAll(wordsInGroup)
     }
 
     /**
@@ -112,16 +119,12 @@ class RearrangeEngine(private val wordDictionary: Set<String>) {
             return RearrangeSubmitResult.Error("Only alphabetic letters are permitted.")
         }
 
-        if (upper == baseWord) {
-            return RearrangeSubmitResult.Error("'$upper' is the base word! Rearrange its letters to form a different word.")
-        }
-
         if (foundWords.contains(upper)) {
             return RearrangeSubmitResult.Error("You already found '$upper'!")
         }
 
-        if (getSignature(upper) != getSignature(baseWord)) {
-            return RearrangeSubmitResult.Error("'$upper' does not use the exact 4 letters of '$baseWord'.")
+        if (getSignature(upper) != getSignature(scrambledLetters)) {
+            return RearrangeSubmitResult.Error("'$upper' does not use the exact 4 letters '$scrambledLetters'.")
         }
 
         if (!allPossibleAnagrams.contains(upper) && !wordDictionary.contains(upper)) {
@@ -163,8 +166,7 @@ class RearrangeEngine(private val wordDictionary: Set<String>) {
      * 3 words = 100 pts
      * N words = 25 * 2^(N - 1) pts
      */
-    fun calculatePoints(): Int {
-        val count = foundWords.size
+    fun calculatePoints(count: Int = foundWords.size): Int {
         if (count == 0) return 0
         var pts = 25
         for (i in 2..count) {
@@ -196,7 +198,7 @@ class RearrangeEngine(private val wordDictionary: Set<String>) {
         val foundList = foundWords.toList()
         for (i in foundList.indices) {
             val word = foundList[i]
-            // Point contribution of this word
+            // Point contribution of this word (25, 25, 50, 100...)
             val pts = if (i == 0) 25 else 25 * (1 shl (i - 1))
             list.add(
                 RearrangeWordEntry(
@@ -208,6 +210,19 @@ class RearrangeEngine(private val wordDictionary: Set<String>) {
             )
         }
         return list
+    }
+
+    private fun generateScrambledLetters(word: String): String {
+        val chars = word.uppercase(Locale.US).toCharArray()
+        // Try to shuffle so the result is unarranged / not identical to the original word if possible
+        for (attempt in 0..10) {
+            chars.shuffle()
+            val candidate = String(chars)
+            if (candidate != word) {
+                return candidate
+            }
+        }
+        return String(chars)
     }
 
     companion object {

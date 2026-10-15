@@ -16,6 +16,7 @@ class RearrangeEngineTest {
     @Before
     fun setUp() {
         // Dictionary containing anagram group with 4 words: STOP, POST, POTS, TOPS
+        // plus group with 3 words: CARE, RACE, ACRE
         // plus non-anagram words
         dictionary = setOf(
             "STOP", "POST", "POTS", "TOPS",
@@ -33,20 +34,24 @@ class RearrangeEngineTest {
     }
 
     @Test
-    fun testBaseWordGuaranteesAtLeastTwoOtherAnagrams() {
-        val baseWord = engine.startNewGame()
-        assertTrue("Base word must have at least 2 other anagrams", engine.allPossibleAnagrams.size >= 2)
-        assertFalse("Possible anagrams must not include the base word itself", engine.allPossibleAnagrams.contains(baseWord))
+    fun testUnarrangedFirstWordIncludedInAllPossibleTargets() {
+        engine.startNewGame("STOP")
+        // All words in group are targets to be rearranged and found
+        assertEquals(4, engine.allPossibleAnagrams.size)
+        assertTrue(engine.allPossibleAnagrams.contains("STOP"))
+        assertTrue(engine.allPossibleAnagrams.contains("POST"))
+        assertTrue(engine.allPossibleAnagrams.contains("POTS"))
+        assertTrue(engine.allPossibleAnagrams.contains("TOPS"))
+        assertEquals(4, engine.scrambledLetters.length)
     }
 
     @Test
     fun testScoringDoublingRule_TwentyFiveFiftyOneHundred() {
-        engine.startNewGame("STOP")
-        assertEquals("STOP", engine.baseWord)
-        assertEquals(3, engine.allPossibleAnagrams.size) // POST, POTS, TOPS
+        engine.startNewGame("CARE")
+        assertEquals(3, engine.allPossibleAnagrams.size) // CARE, RACE, ACRE
 
         // 1st word: 25 points
-        val r1 = engine.submitWord("POST")
+        val r1 = engine.submitWord("CARE")
         assertTrue(r1 is RearrangeSubmitResult.Success)
         val s1 = r1 as RearrangeSubmitResult.Success
         assertEquals(25, s1.pointsEarnedThisWord)
@@ -55,7 +60,7 @@ class RearrangeEngineTest {
         assertFalse(s1.isAllFound)
 
         // 2nd word: doubles to 50 points total (+25 pts delta)
-        val r2 = engine.submitWord("POTS")
+        val r2 = engine.submitWord("RACE")
         assertTrue(r2 is RearrangeSubmitResult.Success)
         val s2 = r2 as RearrangeSubmitResult.Success
         assertEquals(25, s2.pointsEarnedThisWord) // 50 - 25 = 25
@@ -64,7 +69,7 @@ class RearrangeEngineTest {
         assertFalse(s2.isAllFound)
 
         // 3rd word: doubles to 100 points total (+50 pts delta)
-        val r3 = engine.submitWord("TOPS")
+        val r3 = engine.submitWord("ACRE")
         assertTrue(r3 is RearrangeSubmitResult.Success)
         val s3 = r3 as RearrangeSubmitResult.Success
         assertEquals(50, s3.pointsEarnedThisWord) // 100 - 50 = 50
@@ -72,15 +77,6 @@ class RearrangeEngineTest {
         assertEquals(100, engine.calculatePoints())
         assertTrue("All 3 words found should complete the game", s3.isAllFound)
         assertTrue(engine.isGameOver)
-    }
-
-    @Test
-    fun testSubmitWord_RejectsBaseWordItself() {
-        engine.startNewGame("STOP")
-        val result = engine.submitWord("STOP")
-        assertTrue(result is RearrangeSubmitResult.Error)
-        val error = result as RearrangeSubmitResult.Error
-        assertTrue(error.message.contains("is the base word"))
     }
 
     @Test

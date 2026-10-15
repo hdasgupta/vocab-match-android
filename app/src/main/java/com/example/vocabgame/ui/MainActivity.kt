@@ -52,6 +52,7 @@ class MainActivity : AppCompatActivity() {
         private const val GAME_REARRANGE = "game_rearrange"
 
         // Rearrange state keys
+        private const val KEY_REARRANGE_SCRAMBLED_LETTERS = "key_rearrange_scrambled"
         private const val KEY_REARRANGE_BASE_WORD = "key_rearrange_base_word"
         private const val KEY_REARRANGE_FOUND_WORDS = "key_rearrange_found_words"
         private const val KEY_REARRANGE_IS_GAME_OVER = "key_rearrange_is_game_over"
@@ -1042,6 +1043,7 @@ class MainActivity : AppCompatActivity() {
         outState.putStringArrayList(KEY_CHAIN_USED_WORDS, chainUsedList)
 
         // Save Rearrange state
+        outState.putString(KEY_REARRANGE_SCRAMBLED_LETTERS, rearrangeEngine.scrambledLetters)
         outState.putString(KEY_REARRANGE_BASE_WORD, rearrangeEngine.baseWord)
         outState.putBoolean(KEY_REARRANGE_IS_GAME_OVER, rearrangeEngine.isGameOver)
         outState.putStringArrayList(KEY_REARRANGE_FOUND_WORDS, ArrayList(rearrangeEngine.foundWords))
@@ -1159,10 +1161,11 @@ class MainActivity : AppCompatActivity() {
         }
 
         // Restore Rearrange
+        val rearrangeScrambled = bundle.getString(KEY_REARRANGE_SCRAMBLED_LETTERS) ?: ""
         val rearrangeBase = bundle.getString(KEY_REARRANGE_BASE_WORD) ?: ""
         val rearrangeGameOver = bundle.getBoolean(KEY_REARRANGE_IS_GAME_OVER, false)
         val rearrangeFound = bundle.getStringArrayList(KEY_REARRANGE_FOUND_WORDS)?.toSet() ?: emptySet()
-        rearrangeEngine.restoreState(rearrangeBase, rearrangeFound, rearrangeGameOver)
+        rearrangeEngine.restoreState(rearrangeScrambled, rearrangeBase, rearrangeFound, rearrangeGameOver)
 
         if (rearrangeGameOver) {
             val combined = mutableListOf<RearrangeWordEntry>()
@@ -1191,7 +1194,8 @@ class MainActivity : AppCompatActivity() {
     // ==========================================
 
     private fun startNewRearrangeGame() {
-        val base = rearrangeEngine.startNewGame()
+        val scrambled = rearrangeEngine.startNewGame()
+        val formatted = scrambled.map { "$it" }.joinToString(" • ")
         etRearrangeInput.text.clear()
         etRearrangeInput.isEnabled = true
         btnSubmitRearrangeWord.isEnabled = true
@@ -1199,7 +1203,7 @@ class MainActivity : AppCompatActivity() {
 
         rearrangeWordAdapter.submitList(emptyList())
         updateRearrangeViews()
-        tvRearrangeStatus.text = getString(R.string.rearrange_status_initial, base)
+        tvRearrangeStatus.text = getString(R.string.rearrange_status_initial, formatted)
     }
 
     private fun handleRearrangeWordSubmission() {
@@ -1294,7 +1298,8 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun updateRearrangeViews() {
-        tvRearrangeBaseWord.text = rearrangeEngine.baseWord
+        val formattedLetters = rearrangeEngine.scrambledLetters.map { "$it" }.joinToString(" • ")
+        tvRearrangeBaseWord.text = formattedLetters
         val found = rearrangeEngine.foundWords.size
         val totalPossible = rearrangeEngine.allPossibleAnagrams.size
         val currentPts = rearrangeEngine.calculatePoints()
