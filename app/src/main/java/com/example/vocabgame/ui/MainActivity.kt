@@ -17,20 +17,35 @@ import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
+import androidx.core.view.GravityCompat
+import androidx.drawerlayout.widget.DrawerLayout
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.example.vocabgame.R
 import com.example.vocabgame.data.DatabaseHelper
 import com.example.vocabgame.data.WordDictionary
 import com.example.vocabgame.data.WordMeanings
+import com.example.vocabgame.logic.ChangeLetterEngine
+import com.example.vocabgame.logic.ComputerPlayResult
 import com.example.vocabgame.logic.GameEngine
+import com.example.vocabgame.logic.UserPlayResult
+import com.example.vocabgame.model.ChainGameStats
+import com.example.vocabgame.model.ChainWordEntry
 import com.example.vocabgame.model.GameStats
+import com.example.vocabgame.model.PlayerType
+import com.google.android.material.appbar.MaterialToolbar
 import com.google.android.material.card.MaterialCardView
+import com.google.android.material.navigation.NavigationView
 import java.util.Locale
 
 class MainActivity : AppCompatActivity() {
 
     companion object {
+        private const val KEY_ACTIVE_GAME = "key_active_game"
+        private const val GAME_GUESS_WORD = "game_guess_word"
+        private const val GAME_CHANGE_LETTER = "game_change_letter"
+
+        // Guess Word state keys
         private const val KEY_SECRET_WORD = "key_secret_word"
         private const val KEY_GUESS_COUNT = "key_guess_count"
         private const val KEY_IS_GAME_OVER = "key_is_game_over"
@@ -40,6 +55,14 @@ class MainActivity : AppCompatActivity() {
         private const val KEY_STATUS_HINT = "key_status_hint"
         private const val KEY_GUESS_HISTORY = "key_guess_history"
         private const val KEY_LETTER_STATES = "key_letter_states"
+
+        // Change a Letter state keys
+        private const val KEY_CHAIN_CURRENT_WORD = "key_chain_curr_word"
+        private const val KEY_CHAIN_POINTS = "key_chain_points"
+        private const val KEY_CHAIN_IS_GAME_OVER = "key_chain_is_game_over"
+        private const val KEY_CHAIN_HISTORY = "key_chain_history"
+        private const val KEY_CHAIN_USED_WORDS = "key_chain_used_words"
+        private const val KEY_CHAIN_STATUS = "key_chain_status"
     }
 
     enum class LetterState {
@@ -51,8 +74,20 @@ class MainActivity : AppCompatActivity() {
 
     private lateinit var dbHelper: DatabaseHelper
     private lateinit var gameEngine: GameEngine
-    private lateinit var guessAdapter: GuessAdapter
+    private lateinit var chainEngine: ChangeLetterEngine
 
+    // Navigation & Toolbar
+    private lateinit var drawerLayout: DrawerLayout
+    private lateinit var navView: NavigationView
+    private lateinit var toolbar: MaterialToolbar
+    private lateinit var layoutGuessWordContainer: LinearLayout
+    private lateinit var layoutChangeLetterContainer: LinearLayout
+    private var activeGameMode: String = GAME_GUESS_WORD
+
+    // ==========================================
+    // Guess Word Views
+    // ==========================================
+    private lateinit var guessAdapter: GuessAdapter
     private lateinit var tvTotalGames: TextView
     private lateinit var tvAggregatedPoints: TextView
     private lateinit var tvAverageGuesses: TextView
@@ -65,18 +100,36 @@ class MainActivity : AppCompatActivity() {
     private lateinit var tvEmptyHistory: TextView
     private lateinit var tvStatusHint: TextView
 
-    // Hint & Show Word UI elements
     private lateinit var cardHintBanner: MaterialCardView
     private lateinit var tvHintText: TextView
     private lateinit var btnHint: Button
     private lateinit var btnShowWord: Button
     private var isHintUsed: Boolean = false
 
-    // Letter Tracker views and state
     private lateinit var layoutLetterRows: LinearLayout
     private lateinit var btnClearTracker: Button
     private val letterStates = mutableMapOf<Char, LetterState>()
     private val letterViews = mutableMapOf<Char, TextView>()
+
+    // ==========================================
+    // Change a Letter Views
+    // ==========================================
+    private lateinit var chainAdapter: ChainAdapter
+    private lateinit var tvChainAvgCount: TextView
+    private lateinit var tvChainTotalPoints: TextView
+    private lateinit var tvChainTotalGames: TextView
+    private lateinit var btnResetChainStats: Button
+
+    private lateinit var tvChainCurrentWord: TextView
+    private lateinit var tvChainCurrentLength: TextView
+    private lateinit var tvChainGamePoints: TextView
+    private lateinit var tvChainStatus: TextView
+    private lateinit var etChainInput: EditText
+    private lateinit var btnChainPlayWord: Button
+    private lateinit var btnChainSurrender: Button
+    private lateinit var btnNewChainGame: Button
+    private lateinit var rvChainHistory: RecyclerView
+    private lateinit var tvEmptyChainHistory: TextView
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -84,23 +137,36 @@ class MainActivity : AppCompatActivity() {
 
         dbHelper = DatabaseHelper(this)
         
-        // Initialize comprehensive 5,600+ word dictionary
+        // Initialize 5,600+ word dictionary
         WordDictionary.init(this)
         gameEngine = GameEngine(WordDictionary.getAllWords())
+        chainEngine = ChangeLetterEngine(WordDictionary.getAllWords())
 
         initViews()
+        setupNavigationDrawer()
         setupLetterTracker()
         setupListeners()
         refreshStats()
+        refreshChainStats()
 
         if (savedInstanceState != null) {
-            restoreGameState(savedInstanceState)
+            restoreAllState(savedInstanceState)
         } else {
             startNewGame()
+            startNewChainGame()
+            switchToGame(GAME_GUESS_WORD)
         }
     }
 
     private fun initViews() {
+        // Navigation & Containers
+        drawerLayout = findViewById(R.id.drawerLayout)
+        navView = findViewById(R.id.navView)
+        toolbar = findViewById(R.id.toolbar)
+        layoutGuessWordContainer = findViewById(R.id.layoutGuessWordContainer)
+        layoutChangeLetterContainer = findViewById(R.id.layoutChangeLetterContainer)
+
+        // Guess Word Views
         tvTotalGames = findViewById(R.id.tvTotalGames)
         tvAggregatedPoints = findViewById(R.id.tvAggregatedPoints)
         tvAverageGuesses = findViewById(R.id.tvAverageGuesses)
@@ -121,23 +187,85 @@ class MainActivity : AppCompatActivity() {
         layoutLetterRows = findViewById(R.id.layoutLetterRows)
         btnClearTracker = findViewById(R.id.btnClearTracker)
 
-        // Force uppercase input and max 4 letters
-        etWordInput.filters = arrayOf(
-            InputFilter.LengthFilter(4),
-            InputFilter.AllCaps()
-        )
-
+        etWordInput.filters = arrayOf(InputFilter.LengthFilter(4), InputFilter.AllCaps())
         guessAdapter = GuessAdapter()
-        val layoutManager = LinearLayoutManager(this)
-        layoutManager.reverseLayout = true
-        layoutManager.stackFromEnd = true
-        rvGuesses.layoutManager = layoutManager
+        val guessLayoutManager = LinearLayoutManager(this).apply {
+            reverseLayout = true
+            stackFromEnd = true
+        }
+        rvGuesses.layoutManager = guessLayoutManager
         rvGuesses.adapter = guessAdapter
+
+        // Change a Letter Views
+        tvChainAvgCount = findViewById(R.id.tvChainAvgCount)
+        tvChainTotalPoints = findViewById(R.id.tvChainTotalPoints)
+        tvChainTotalGames = findViewById(R.id.tvChainTotalGames)
+        btnResetChainStats = findViewById(R.id.btnResetChainStats)
+
+        tvChainCurrentWord = findViewById(R.id.tvChainCurrentWord)
+        tvChainCurrentLength = findViewById(R.id.tvChainCurrentLength)
+        tvChainGamePoints = findViewById(R.id.tvChainGamePoints)
+        tvChainStatus = findViewById(R.id.tvChainStatus)
+        etChainInput = findViewById(R.id.etChainInput)
+        btnChainPlayWord = findViewById(R.id.btnChainPlayWord)
+        btnChainSurrender = findViewById(R.id.btnChainSurrender)
+        btnNewChainGame = findViewById(R.id.btnNewChainGame)
+        rvChainHistory = findViewById(R.id.rvChainHistory)
+        tvEmptyChainHistory = findViewById(R.id.tvEmptyChainHistory)
+
+        etChainInput.filters = arrayOf(InputFilter.LengthFilter(4), InputFilter.AllCaps())
+        chainAdapter = ChainAdapter()
+        val chainLayoutManager = LinearLayoutManager(this).apply {
+            reverseLayout = true
+            stackFromEnd = true
+        }
+        rvChainHistory.layoutManager = chainLayoutManager
+        rvChainHistory.adapter = chainAdapter
     }
 
-    /**
-     * Programmatically creates rounded stroke drawables to avoid any XML resource linking dependency.
-     */
+    private fun setupNavigationDrawer() {
+        toolbar.setNavigationOnClickListener {
+            drawerLayout.openDrawer(GravityCompat.START)
+        }
+
+        navView.setNavigationItemSelectedListener { menuItem ->
+            when (menuItem.itemId) {
+                R.id.nav_guess_word -> {
+                    switchToGame(GAME_GUESS_WORD)
+                    drawerLayout.closeDrawer(GravityCompat.START)
+                    true
+                }
+                R.id.nav_change_letter -> {
+                    switchToGame(GAME_CHANGE_LETTER)
+                    drawerLayout.closeDrawer(GravityCompat.START)
+                    true
+                }
+                else -> false
+            }
+        }
+    }
+
+    private fun switchToGame(gameMode: String) {
+        activeGameMode = gameMode
+        if (gameMode == GAME_GUESS_WORD) {
+            layoutGuessWordContainer.visibility = View.VISIBLE
+            layoutChangeLetterContainer.visibility = View.GONE
+            toolbar.title = getString(R.string.title_guess_word)
+            toolbar.subtitle = getString(R.string.subtitle_guess_word)
+            navView.setCheckedItem(R.id.nav_guess_word)
+        } else {
+            layoutGuessWordContainer.visibility = View.GONE
+            layoutChangeLetterContainer.visibility = View.VISIBLE
+            toolbar.title = getString(R.string.title_change_letter)
+            toolbar.subtitle = getString(R.string.subtitle_change_letter)
+            navView.setCheckedItem(R.id.nav_change_letter)
+        }
+    }
+
+    // ==========================================
+    // Guess Word Mechanics
+    // ==========================================
+
     private fun createLetterDrawable(bgColor: Int, strokeColor: Int): GradientDrawable {
         val density = resources.displayMetrics.density
         return GradientDrawable().apply {
@@ -152,14 +280,7 @@ class MainActivity : AppCompatActivity() {
         letterStates.clear()
         letterViews.clear()
 
-        // 4 alphabetical rows covering all 26 letters (A–Z)
-        val rows = listOf(
-            "ABCDEFG", // 7
-            "HIJKLMN", // 7
-            "OPQRSTU", // 7
-            "VWXYZ"    // 5
-        )
-
+        val rows = listOf("ABCDEFG", "HIJKLMN", "OPQRSTU", "VWXYZ")
         val density = resources.displayMetrics.density
         val heightPx = (38 * density).toInt()
         val marginPx = (3 * density).toInt()
@@ -225,7 +346,6 @@ class MainActivity : AppCompatActivity() {
                 targetView.paintFlags = targetView.paintFlags and Paint.STRIKE_THRU_TEXT_FLAG.inv()
             }
             LetterState.SELECTED -> {
-                // Selected letters' background is GREEN
                 targetView.background = createLetterDrawable(
                     ContextCompat.getColor(this, R.color.tracker_selected_green),
                     ContextCompat.getColor(this, R.color.tracker_selected_green_stroke)
@@ -234,7 +354,6 @@ class MainActivity : AppCompatActivity() {
                 targetView.paintFlags = targetView.paintFlags and Paint.STRIKE_THRU_TEXT_FLAG.inv()
             }
             LetterState.AMBER -> {
-                // Amber state
                 targetView.background = createLetterDrawable(
                     ContextCompat.getColor(this, R.color.tracker_amber),
                     ContextCompat.getColor(this, R.color.tracker_amber_stroke)
@@ -243,7 +362,6 @@ class MainActivity : AppCompatActivity() {
                 targetView.paintFlags = targetView.paintFlags and Paint.STRIKE_THRU_TEXT_FLAG.inv()
             }
             LetterState.ELIMINATED -> {
-                // Eliminated letters' background is RED
                 targetView.background = createLetterDrawable(
                     ContextCompat.getColor(this, R.color.tracker_eliminated_red),
                     ContextCompat.getColor(this, R.color.tracker_eliminated_red_stroke)
@@ -262,24 +380,18 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun setupListeners() {
-        btnSubmitGuess.setOnClickListener {
-            handleGuessSubmission()
-        }
-
+        // Guess Word Listeners
+        btnSubmitGuess.setOnClickListener { handleGuessSubmission() }
         btnClearTracker.setOnClickListener {
             resetLetterTracker()
             Toast.makeText(this, "Letter tracker cleared", Toast.LENGTH_SHORT).show()
         }
-
-        // Hint with descriptive meaning (-50% points penalty)
         btnHint.setOnClickListener {
             if (gameEngine.isGameOver) return@setOnClickListener
-
             if (isHintUsed) {
                 cardHintBanner.visibility = View.VISIBLE
                 return@setOnClickListener
             }
-
             AlertDialog.Builder(this)
                 .setTitle(R.string.confirm_hint_title)
                 .setMessage(R.string.confirm_hint_msg)
@@ -295,30 +407,21 @@ class MainActivity : AppCompatActivity() {
                 .setNegativeButton(R.string.cancel, null)
                 .show()
         }
-
-        // Show Word option (Ends game with 0 points)
         btnShowWord.setOnClickListener {
             if (gameEngine.isGameOver) return@setOnClickListener
-
             AlertDialog.Builder(this)
                 .setTitle(R.string.confirm_show_word_title)
                 .setMessage(R.string.confirm_show_word_msg)
-                .setPositiveButton(R.string.reveal) { _, _ ->
-                    onGameForfeited()
-                }
+                .setPositiveButton(R.string.reveal) { _, _ -> onGameForfeited() }
                 .setNegativeButton(R.string.cancel, null)
                 .show()
         }
-
         etWordInput.setOnEditorActionListener { _, actionId, _ ->
             if (actionId == EditorInfo.IME_ACTION_DONE) {
                 handleGuessSubmission()
                 true
-            } else {
-                false
-            }
+            } else false
         }
-
         btnNewGame.setOnClickListener {
             if (!gameEngine.isGameOver && gameEngine.guessCount > 0) {
                 AlertDialog.Builder(this)
@@ -327,11 +430,8 @@ class MainActivity : AppCompatActivity() {
                     .setPositiveButton(R.string.yes) { _, _ -> startNewGame() }
                     .setNegativeButton(R.string.cancel, null)
                     .show()
-            } else {
-                startNewGame()
-            }
+            } else startNewGame()
         }
-
         btnResetStats.setOnClickListener {
             AlertDialog.Builder(this)
                 .setTitle(R.string.reset_stats_title)
@@ -340,6 +440,29 @@ class MainActivity : AppCompatActivity() {
                     dbHelper.resetAllStats()
                     refreshStats()
                     Toast.makeText(this, R.string.stats_reset_success, Toast.LENGTH_SHORT).show()
+                }
+                .setNegativeButton(R.string.cancel, null)
+                .show()
+        }
+
+        // Change a Letter Listeners
+        btnChainPlayWord.setOnClickListener { handleUserChainWord() }
+        etChainInput.setOnEditorActionListener { _, actionId, _ ->
+            if (actionId == EditorInfo.IME_ACTION_DONE) {
+                handleUserChainWord()
+                true
+            } else false
+        }
+        btnChainSurrender.setOnClickListener { handleUserChainSurrender() }
+        btnNewChainGame.setOnClickListener { startNewChainGame() }
+        btnResetChainStats.setOnClickListener {
+            AlertDialog.Builder(this)
+                .setTitle(R.string.confirm_reset_chain_stats_title)
+                .setMessage(R.string.confirm_reset_chain_stats_msg)
+                .setPositiveButton(R.string.reset) { _, _ ->
+                    dbHelper.resetChainStats()
+                    refreshChainStats()
+                    Toast.makeText(this, "Change a Letter stats reset.", Toast.LENGTH_SHORT).show()
                 }
                 .setNegativeButton(R.string.cancel, null)
                 .show()
@@ -367,17 +490,14 @@ class MainActivity : AppCompatActivity() {
 
     private fun handleGuessSubmission() {
         val input = etWordInput.text.toString().trim().uppercase(Locale.US)
-
         if (input.length != 4) {
             Toast.makeText(this, R.string.err_enter_4_letters, Toast.LENGTH_SHORT).show()
             return
         }
-
         if (!input.all { it in 'A'..'Z' }) {
             Toast.makeText(this, R.string.err_only_letters, Toast.LENGTH_SHORT).show()
             return
         }
-
         if (!WordDictionary.isValidWord(input)) {
             Toast.makeText(this, getString(R.string.err_not_meaningful_word, input), Toast.LENGTH_SHORT).show()
             return
@@ -392,11 +512,7 @@ class MainActivity : AppCompatActivity() {
         if (result.isCorrect) {
             onGameWon()
         } else {
-            tvStatusHint.text = getString(
-                R.string.status_feedback_format,
-                result.guessedWord,
-                result.matchingCount
-            )
+            tvStatusHint.text = getString(R.string.status_feedback_format, result.guessedWord, result.matchingCount)
         }
     }
 
@@ -410,15 +526,11 @@ class MainActivity : AppCompatActivity() {
         val points = gameEngine.calculatePoints(isHintUsed)
         val secret = gameEngine.secretWord
 
-        // Store into built-in SQLite database
         dbHelper.recordGame(secret, guesses, points)
-
-        // Refresh stats card
         val updatedStats = dbHelper.getAggregatedStats()
         displayStats(updatedStats)
 
         tvStatusHint.text = getString(R.string.status_game_won, secret, guesses, points)
-
         showVictoryDialog(secret, guesses, points, updatedStats)
     }
 
@@ -431,9 +543,7 @@ class MainActivity : AppCompatActivity() {
 
         val secret = gameEngine.secretWord
         val meaning = WordMeanings.getMeaning(secret)
-
         tvStatusHint.text = getString(R.string.status_word_revealed, secret)
-
         showRevealDialog(secret, meaning)
     }
 
@@ -451,14 +561,12 @@ class MainActivity : AppCompatActivity() {
 
         tvSecretWord.text = secret
         tvGuessesCount.text = guesses.toString()
-
         val pointsFormat = if (isHintUsed) {
             String.format(Locale.US, "%.1f pts (100 / %d / 2 [Hint])", points, guesses)
         } else {
             String.format(Locale.US, "%.1f pts (100 / %d)", points, guesses)
         }
         tvPointsEarned.text = pointsFormat
-
         tvAvgGuesses.text = String.format(Locale.US, "%.2f guesses/game", stats.averageGuesses)
         tvAggPoints.text = String.format(Locale.US, "%.1f pts", stats.aggregatedPoints)
 
@@ -466,14 +574,10 @@ class MainActivity : AppCompatActivity() {
             dialog.dismiss()
             startNewGame()
         }
-
         dialog.setCancelable(false)
         dialog.show()
     }
 
-    /**
-     * Programmatic reveal dialog: 100% self-contained with ZERO external XML layout dependencies.
-     */
     private fun showRevealDialog(secret: String, meaning: String) {
         val dialog = Dialog(this)
         val density = resources.displayMetrics.density
@@ -588,9 +692,206 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    // ==========================================
+    // Change a Letter Mechanics
+    // ==========================================
+
+    private fun startNewChainGame() {
+        val startWord = WordDictionary.getRandomSecretWord()
+        chainEngine.startNewGame(startWord)
+
+        etChainInput.text.clear()
+        etChainInput.isEnabled = true
+        btnChainPlayWord.isEnabled = true
+        btnChainSurrender.isEnabled = true
+
+        chainAdapter.submitList(chainEngine.chainHistory.toList())
+        updateChainViews()
+        tvChainStatus.text = getString(R.string.chain_status_initial, startWord)
+    }
+
+    private fun handleUserChainWord() {
+        val input = etChainInput.text.toString().trim().uppercase(Locale.US)
+        when (val result = chainEngine.playUserWord(input)) {
+            is UserPlayResult.Error -> {
+                Toast.makeText(this, result.message, Toast.LENGTH_SHORT).show()
+            }
+            is UserPlayResult.Success -> {
+                etChainInput.text.clear()
+                chainAdapter.submitList(chainEngine.chainHistory.toList())
+                updateChainViews()
+                rvChainHistory.smoothScrollToPosition(chainAdapter.itemCount - 1)
+
+                tvChainStatus.text = getString(R.string.chain_status_turn_comp, result.playedWord)
+                
+                // Trigger computer turn
+                rvChainHistory.postDelayed({
+                    handleComputerChainTurn()
+                }, 400)
+            }
+        }
+    }
+
+    private fun handleComputerChainTurn() {
+        when (val compResult = chainEngine.playComputerTurn()) {
+            is ComputerPlayResult.Played -> {
+                chainAdapter.submitList(chainEngine.chainHistory.toList())
+                updateChainViews()
+                rvChainHistory.smoothScrollToPosition(chainAdapter.itemCount - 1)
+                tvChainStatus.text = getString(R.string.chain_status_turn_user, compResult.computerWord)
+            }
+            is ComputerPlayResult.Surrendered -> {
+                // Computer surrendered! User won!
+                etChainInput.isEnabled = false
+                btnChainPlayWord.isEnabled = false
+                btnChainSurrender.isEnabled = false
+
+                val finalChain = compResult.finalChainLength
+                val earnedPoints = compResult.userPoints
+                val userWords = chainEngine.chainHistory.count { it.player == PlayerType.USER }
+
+                dbHelper.recordChainGame(finalChain, userWords, earnedPoints, "USER")
+                refreshChainStats()
+
+                tvChainStatus.text = getString(R.string.chain_status_comp_surrender, finalChain, earnedPoints)
+                showChainOutcomeDialog(
+                    title = "🎉 Computer Surrendered!",
+                    message = "The computer is unable to make any further word from '${chainEngine.currentWord}'.\n\nYou won the round!",
+                    chainLength = finalChain,
+                    points = earnedPoints
+                )
+            }
+        }
+    }
+
+    private fun handleUserChainSurrender() {
+        if (chainEngine.isGameOver) return
+
+        AlertDialog.Builder(this)
+            .setTitle(R.string.confirm_surrender_title)
+            .setMessage(getString(R.string.confirm_surrender_msg, chainEngine.currentWord))
+            .setPositiveButton("Surrender") { _, _ ->
+                val points = chainEngine.surrenderUser()
+                etChainInput.isEnabled = false
+                btnChainPlayWord.isEnabled = false
+                btnChainSurrender.isEnabled = false
+
+                val finalChain = chainEngine.chainHistory.size
+                val userWords = chainEngine.chainHistory.count { it.player == PlayerType.USER }
+
+                dbHelper.recordChainGame(finalChain, userWords, points, "COMPUTER")
+                refreshChainStats()
+
+                tvChainStatus.text = getString(R.string.chain_status_user_surrender, finalChain, points)
+                showChainOutcomeDialog(
+                    title = "🏳️ Game Over",
+                    message = "You surrendered this word chain. Great effort maintaining the sequence!",
+                    chainLength = finalChain,
+                    points = points
+                )
+            }
+            .setNegativeButton(R.string.cancel, null)
+            .show()
+    }
+
+    private fun updateChainViews() {
+        tvChainCurrentWord.text = chainEngine.currentWord
+        val count = chainEngine.chainHistory.size
+        tvChainCurrentLength.text = "Chain: $count word${if (count != 1) "s" else ""}"
+        tvChainGamePoints.text = "This Game: ${chainEngine.userPoints} pts"
+
+        if (chainAdapter.itemCount == 0) {
+            tvEmptyChainHistory.visibility = View.VISIBLE
+            rvChainHistory.visibility = View.GONE
+        } else {
+            tvEmptyChainHistory.visibility = View.GONE
+            rvChainHistory.visibility = View.VISIBLE
+        }
+    }
+
+    private fun refreshChainStats() {
+        val stats = dbHelper.getChainAggregatedStats()
+        tvChainAvgCount.text = String.format(Locale.US, "%.1f", stats.averageChainCount)
+        tvChainTotalPoints.text = "${stats.aggregatedPoints} pts"
+        tvChainTotalGames.text = stats.totalGames.toString()
+    }
+
+    private fun showChainOutcomeDialog(title: String, message: String, chainLength: Int, points: Int) {
+        val dialog = Dialog(this)
+        val density = resources.displayMetrics.density
+        val padding = (24 * density).toInt()
+
+        val card = MaterialCardView(this).apply {
+            radius = 20f * density
+            cardElevation = 6f * density
+            setStrokeColor(ContextCompat.getColor(this@MainActivity, R.color.primary_brand))
+            strokeWidth = (2 * density).toInt()
+            setCardBackgroundColor(ContextCompat.getColor(this@MainActivity, R.color.card_background))
+        }
+
+        val layout = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            gravity = Gravity.CENTER_HORIZONTAL
+            setPadding(padding, padding, padding, padding)
+        }
+
+        val titleView = TextView(this).apply {
+            text = title
+            textSize = 20f
+            typeface = Typeface.DEFAULT_BOLD
+            setTextColor(ContextCompat.getColor(this@MainActivity, R.color.text_primary))
+            gravity = Gravity.CENTER
+        }
+
+        val msgView = TextView(this).apply {
+            text = message
+            textSize = 13f
+            setTextColor(ContextCompat.getColor(this@MainActivity, R.color.text_secondary))
+            gravity = Gravity.CENTER
+            setPadding(0, (8 * density).toInt(), 0, (14 * density).toInt())
+        }
+
+        val statsSummary = TextView(this).apply {
+            text = "Total Chain Words: $chainLength\nPoints Earned: +$points pts (+2 per word)"
+            textSize = 14f
+            typeface = Typeface.DEFAULT_BOLD
+            setTextColor(ContextCompat.getColor(this@MainActivity, R.color.success_green))
+            gravity = Gravity.CENTER
+            setPadding(0, 0, 0, (18 * density).toInt())
+        }
+
+        val btnPlayNext = com.google.android.material.button.MaterialButton(this).apply {
+            text = "Start Next Chain"
+            textSize = 15f
+            cornerRadius = (12 * density).toInt()
+            setBackgroundColor(ContextCompat.getColor(this@MainActivity, R.color.primary_brand))
+            setOnClickListener {
+                dialog.dismiss()
+                startNewChainGame()
+            }
+        }
+
+        layout.addView(titleView)
+        layout.addView(msgView)
+        layout.addView(statsSummary)
+        layout.addView(btnPlayNext)
+        card.addView(layout)
+
+        dialog.setContentView(card)
+        dialog.window?.setBackgroundDrawableResource(android.R.color.transparent)
+        dialog.setCancelable(false)
+        dialog.show()
+    }
+
+    // ==========================================
+    // Unified Lifecycle State Preservation
+    // ==========================================
 
     override fun onSaveInstanceState(outState: Bundle) {
         super.onSaveInstanceState(outState)
+        outState.putString(KEY_ACTIVE_GAME, activeGameMode)
+
+        // Save Guess Word state
         outState.putString(KEY_SECRET_WORD, gameEngine.secretWord)
         outState.putInt(KEY_GUESS_COUNT, gameEngine.guessCount)
         outState.putBoolean(KEY_IS_GAME_OVER, gameEngine.isGameOver)
@@ -599,27 +900,40 @@ class MainActivity : AppCompatActivity() {
         outState.putBoolean(KEY_IS_HINT_VISIBLE, cardHintBanner.visibility == View.VISIBLE)
         outState.putString(KEY_STATUS_HINT, tvStatusHint.text.toString())
 
-        // Save guess history
         val historyList = ArrayList<String>()
         for (item in gameEngine.guessHistory) {
             historyList.add("${item.guessNumber}|${item.guessedWord}|${item.matchingCount}|${item.exactPositions}|${item.isCorrect}")
         }
         outState.putStringArrayList(KEY_GUESS_HISTORY, historyList)
 
-        // Save letter tracker states
         val trackerList = ArrayList<String>()
         for ((ch, state) in letterStates) {
             trackerList.add("$ch:${state.name}")
         }
         outState.putStringArrayList(KEY_LETTER_STATES, trackerList)
+
+        // Save Change a Letter state
+        outState.putString(KEY_CHAIN_CURRENT_WORD, chainEngine.currentWord)
+        outState.putInt(KEY_CHAIN_POINTS, chainEngine.userPoints)
+        outState.putBoolean(KEY_CHAIN_IS_GAME_OVER, chainEngine.isGameOver)
+        outState.putString(KEY_CHAIN_STATUS, tvChainStatus.text.toString())
+
+        val chainHistoryList = ArrayList<String>()
+        for (item in chainEngine.chainHistory) {
+            chainHistoryList.add("${item.stepNumber}|${item.word}|${item.player.name}|${item.pointsAwarded}")
+        }
+        outState.putStringArrayList(KEY_CHAIN_HISTORY, chainHistoryList)
+
+        val chainUsedList = ArrayList<String>(chainEngine.usedWords)
+        outState.putStringArrayList(KEY_CHAIN_USED_WORDS, chainUsedList)
     }
 
-    private fun restoreGameState(bundle: Bundle) {
+    private fun restoreAllState(bundle: Bundle) {
+        // Restore Guess Word
         val secret = bundle.getString(KEY_SECRET_WORD) ?: ""
         val count = bundle.getInt(KEY_GUESS_COUNT, 0)
         val isOver = bundle.getBoolean(KEY_IS_GAME_OVER, false)
 
-        // Restore guess history
         val historyStrings = bundle.getStringArrayList(KEY_GUESS_HISTORY) ?: arrayListOf()
         val restoredHistory = mutableListOf<com.example.vocabgame.model.GuessResult>()
         for (raw in historyStrings) {
@@ -640,7 +954,6 @@ class MainActivity : AppCompatActivity() {
         guessAdapter.submitList(gameEngine.guessHistory.toList())
         updateHistoryVisibility()
 
-        // Restore hint banner and penalty state
         isHintUsed = bundle.getBoolean(KEY_IS_HINT_USED, false)
         val hintText = bundle.getString(KEY_HINT_TEXT) ?: ""
         val isHintVisible = bundle.getBoolean(KEY_IS_HINT_VISIBLE, false)
@@ -655,10 +968,7 @@ class MainActivity : AppCompatActivity() {
             btnHint.text = getString(R.string.btn_hint)
         }
 
-        // Restore status text
         tvStatusHint.text = bundle.getString(KEY_STATUS_HINT) ?: getString(R.string.status_secret_chosen)
-
-        // Restore UI enabled states
         if (isOver) {
             etWordInput.isEnabled = false
             btnSubmitGuess.isEnabled = false
@@ -670,15 +980,13 @@ class MainActivity : AppCompatActivity() {
             btnShowWord.isEnabled = true
         }
 
-        // Restore letter tracker selection / colors
         val trackerStrings = bundle.getStringArrayList(KEY_LETTER_STATES) ?: arrayListOf()
         for (entry in trackerStrings) {
             val parts = entry.split(":")
             if (parts.size == 2) {
                 val ch = parts[0].firstOrNull() ?: continue
-                val stateName = parts[1]
                 val state = try {
-                    LetterState.valueOf(stateName)
+                    LetterState.valueOf(parts[1])
                 } catch (e: Exception) {
                     LetterState.UNSELECTED
                 }
@@ -686,6 +994,46 @@ class MainActivity : AppCompatActivity() {
                 updateLetterView(ch, state)
             }
         }
-    }
 
+        // Restore Change a Letter
+        val chainWord = bundle.getString(KEY_CHAIN_CURRENT_WORD) ?: ""
+        val chainPoints = bundle.getInt(KEY_CHAIN_POINTS, 0)
+        val chainIsOver = bundle.getBoolean(KEY_CHAIN_IS_GAME_OVER, false)
+
+        val rawChainHistory = bundle.getStringArrayList(KEY_CHAIN_HISTORY) ?: arrayListOf()
+        val restoredChainHistory = mutableListOf<ChainWordEntry>()
+        for (raw in rawChainHistory) {
+            val parts = raw.split("|")
+            if (parts.size == 4) {
+                restoredChainHistory.add(
+                    ChainWordEntry(
+                        stepNumber = parts[0].toIntOrNull() ?: 1,
+                        word = parts[1],
+                        player = if (parts[2] == "USER") PlayerType.USER else PlayerType.COMPUTER,
+                        pointsAwarded = parts[3].toIntOrNull() ?: 0
+                    )
+                )
+            }
+        }
+
+        val rawUsedWords = bundle.getStringArrayList(KEY_CHAIN_USED_WORDS) ?: arrayListOf()
+        chainEngine.restoreState(chainWord, chainPoints, chainIsOver, restoredChainHistory, rawUsedWords.toSet())
+        chainAdapter.submitList(chainEngine.chainHistory.toList())
+        updateChainViews()
+
+        tvChainStatus.text = bundle.getString(KEY_CHAIN_STATUS) ?: "Your turn: change 1 letter (+2 pts)!"
+        if (chainIsOver) {
+            etChainInput.isEnabled = false
+            btnChainPlayWord.isEnabled = false
+            btnChainSurrender.isEnabled = false
+        } else {
+            etChainInput.isEnabled = true
+            btnChainPlayWord.isEnabled = true
+            btnChainSurrender.isEnabled = true
+        }
+
+        // Restore active game mode
+        val activeGame = bundle.getString(KEY_ACTIVE_GAME) ?: GAME_GUESS_WORD
+        switchToGame(activeGame)
+    }
 }

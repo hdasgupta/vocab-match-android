@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android">
+    <group android:checkableBehavior="single">
+        <item
+            android:id="@+id/nav_guess_word"
+            android:title="@string/nav_guess_word"
+            android:checked="true" />
+        <item
+            android:id="@+id/nav_change_letter"
+            android:title="@string/nav_change_letter" />
+    </group>
+</menu>
