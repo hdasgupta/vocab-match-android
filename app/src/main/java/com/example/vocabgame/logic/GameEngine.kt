@@ -53,6 +53,13 @@ class GameEngine(private val wordDictionary: Set<String>) {
     }
 
     /**
+     * Ends the game immediately when the secret word is revealed by player forfeit.
+     */
+    fun forfeitGame() {
+        isGameOver = true
+    }
+
+    /**
      * Verifies whether a given word is in the dictionary.
      */
     fun isValidDictionaryWord(word: String): Boolean {
@@ -89,8 +96,10 @@ class GameEngine(private val wordDictionary: Set<String>) {
     /**
      * Calculates the game points: 100 divided by number of guesses.
      */
-    fun calculatePoints(): Double {
-        return if (guessCount > 0) 100.0 / guessCount else 0.0
+    fun calculatePoints(isHintUsed: Boolean = false): Double {
+        if (guessCount == 0) return 0.0
+        val base = 100.0 / guessCount
+        return if (isHintUsed) base / 2.0 else base
     }
 
     companion object {

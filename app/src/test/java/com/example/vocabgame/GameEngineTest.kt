@@ -1,6 +1,7 @@
 package com.example.vocabgame
 
 import com.example.vocabgame.data.WordDictionary
+import com.example.vocabgame.data.WordMeanings
 import com.example.vocabgame.logic.GameEngine
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -57,6 +58,19 @@ class GameEngineTest {
     }
 
     @Test
+    fun testScoreCalculation_WithHintPenaltyHalved() {
+        engine.setCustomSecretWord("WORD")
+
+        engine.evaluateGuess("GAME") // Guess 1
+        engine.evaluateGuess("WORD") // Guess 2 (win)
+
+        // Standard points = 100 / 2 = 50.0
+        // With hint penalty (-50%) = 25.0
+        val pointsWithHint = engine.calculatePoints(isHintUsed = true)
+        assertEquals(25.0, pointsWithHint, 0.001)
+    }
+
+    @Test
     fun testScoreCalculation_FirstGuessWin() {
         engine.setCustomSecretWord("WORD")
         engine.evaluateGuess("WORD")
@@ -75,12 +89,32 @@ class GameEngineTest {
     }
 
     @Test
+    fun testGameForfeit() {
+        engine.setCustomSecretWord("BIRD")
+        engine.evaluateGuess("BEAR")
+        assertFalse(engine.isGameOver)
+
+        engine.forfeitGame()
+        assertTrue(engine.isGameOver)
+    }
+
+    @Test
     fun testWordDictionaryAcceptsCommonEverydayWords() {
         val testWords = listOf("CATS", "DOGS", "BOYS", "CARS", "PENS", "DAYS", "EGGS", 
                                "TREE", "BIRD", "FISH", "COME", "WENT", "SAID", "LOOK", 
                                "BOOK", "COOK", "TAKE", "GIVE", "FIND", "HELP", "GOOD")
         for (w in testWords) {
             assertTrue("Word $w should be valid in WordDictionary", WordDictionary.isValidWord(w))
+        }
+    }
+
+    @Test
+    fun testWordMeanings_DoesNotRevealWord() {
+        val sampleWords = listOf("BIRD", "TREE", "BOOK", "FISH", "MOON", "STAR", "TIME", "HOME", "LOVE")
+        for (w in sampleWords) {
+            val meaning = WordMeanings.getMeaning(w)
+            assertFalse("Clue for $w must not mention the word itself", meaning.contains(w, ignoreCase = true))
+            assertTrue("Clue for $w should be descriptive and long", meaning.length > 30)
         }
     }
 }

@@ -22,8 +22,10 @@ import androidx.recyclerview.widget.RecyclerView
 import com.example.vocabgame.R
 import com.example.vocabgame.data.DatabaseHelper
 import com.example.vocabgame.data.WordDictionary
+import com.example.vocabgame.data.WordMeanings
 import com.example.vocabgame.logic.GameEngine
 import com.example.vocabgame.model.GameStats
+import com.google.android.material.card.MaterialCardView
 import java.util.Locale
 
 class MainActivity : AppCompatActivity() {
@@ -49,6 +51,13 @@ class MainActivity : AppCompatActivity() {
     private lateinit var rvGuesses: RecyclerView
     private lateinit var tvEmptyHistory: TextView
     private lateinit var tvStatusHint: TextView
+
+    // Hint & Show Word UI elements
+    private lateinit var cardHintBanner: MaterialCardView
+    private lateinit var tvHintText: TextView
+    private lateinit var btnHint: Button
+    private lateinit var btnShowWord: Button
+    private var isHintUsed: Boolean = false
 
     // Letter Tracker views and state
     private lateinit var layoutLetterRows: LinearLayout
@@ -85,6 +94,11 @@ class MainActivity : AppCompatActivity() {
         rvGuesses = findViewById(R.id.rvGuesses)
         tvEmptyHistory = findViewById(R.id.tvEmptyHistory)
         tvStatusHint = findViewById(R.id.tvStatusHint)
+
+        cardHintBanner = findViewById(R.id.cardHintBanner)
+        tvHintText = findViewById(R.id.tvHintText)
+        btnHint = findViewById(R.id.btnHint)
+        btnShowWord = findViewById(R.id.btnShowWord)
 
         layoutLetterRows = findViewById(R.id.layoutLetterRows)
         btnClearTracker = findViewById(R.id.btnClearTracker)
@@ -184,6 +198,7 @@ class MainActivity : AppCompatActivity() {
         val targetView = view ?: return
         when (state) {
             LetterState.UNSELECTED -> {
+                // Neutral default background
                 targetView.background = createLetterDrawable(
                     ContextCompat.getColor(this, R.color.card_background),
                     ContextCompat.getColor(this, R.color.card_stroke)
@@ -192,20 +207,22 @@ class MainActivity : AppCompatActivity() {
                 targetView.paintFlags = targetView.paintFlags and Paint.STRIKE_THRU_TEXT_FLAG.inv()
             }
             LetterState.SELECTED -> {
+                // Requirement 1: Selected letters' background is GREEN
                 targetView.background = createLetterDrawable(
-                    ContextCompat.getColor(this, R.color.primary_brand),
-                    ContextCompat.getColor(this, R.color.primary_variant)
+                    ContextCompat.getColor(this, R.color.tracker_selected_green),
+                    ContextCompat.getColor(this, R.color.tracker_selected_green_stroke)
                 )
                 targetView.setTextColor(ContextCompat.getColor(this, R.color.white))
                 targetView.paintFlags = targetView.paintFlags and Paint.STRIKE_THRU_TEXT_FLAG.inv()
             }
             LetterState.ELIMINATED -> {
+                // Requirement 1: Eliminated letters' background is RED
                 targetView.background = createLetterDrawable(
-                    ContextCompat.getColor(this, R.color.screen_background),
-                    ContextCompat.getColor(this, R.color.card_stroke)
+                    ContextCompat.getColor(this, R.color.tracker_eliminated_red),
+                    ContextCompat.getColor(this, R.color.tracker_eliminated_red_stroke)
                 )
-                targetView.setTextColor(ContextCompat.getColor(this, R.color.text_secondary))
-                targetView.paintFlags = targetView.paintFlags or Paint.STRIKE_THRU_TEXT_FLAG
+                targetView.setTextColor(ContextCompat.getColor(this, R.color.white))
+                targetView.paintFlags = targetView.paintFlags and Paint.STRIKE_THRU_TEXT_FLAG.inv()
             }
         }
     }
@@ -225,6 +242,45 @@ class MainActivity : AppCompatActivity() {
         btnClearTracker.setOnClickListener {
             resetLetterTracker()
             Toast.makeText(this, "Letter tracker cleared", Toast.LENGTH_SHORT).show()
+        }
+
+        // Requirement 2: Hint with descriptive meaning (-50% points penalty)
+        btnHint.setOnClickListener {
+            if (gameEngine.isGameOver) return@setOnClickListener
+
+            if (isHintUsed) {
+                cardHintBanner.visibility = View.VISIBLE
+                return@setOnClickListener
+            }
+
+            AlertDialog.Builder(this)
+                .setTitle(R.string.confirm_hint_title)
+                .setMessage(R.string.confirm_hint_msg)
+                .setPositiveButton(R.string.yes) { _, _ ->
+                    isHintUsed = true
+                    val clue = WordMeanings.getMeaning(gameEngine.secretWord)
+                    tvHintText.text = clue
+                    cardHintBanner.visibility = View.VISIBLE
+                    btnHint.text = getString(R.string.hint_active_badge)
+                    btnHint.isEnabled = false
+                    Toast.makeText(this, "Hint active: Points earned will be halved.", Toast.LENGTH_SHORT).show()
+                }
+                .setNegativeButton(R.string.cancel, null)
+                .show()
+        }
+
+        // Requirement 3: Show Word option (Ends game with 0 points)
+        btnShowWord.setOnClickListener {
+            if (gameEngine.isGameOver) return@setOnClickListener
+
+            AlertDialog.Builder(this)
+                .setTitle(R.string.confirm_show_word_title)
+                .setMessage(R.string.confirm_show_word_msg)
+                .setPositiveButton(R.string.reveal) { _, _ ->
+                    onGameForfeited()
+                }
+                .setNegativeButton(R.string.cancel, null)
+                .show()
         }
 
         etWordInput.setOnEditorActionListener { _, actionId, _ ->
@@ -267,6 +323,12 @@ class MainActivity : AppCompatActivity() {
         // Choose a familiar, meaningful 4-letter secret word
         val secret = WordDictionary.getRandomSecretWord()
         gameEngine.startNewGame(secret)
+
+        isHintUsed = false
+        cardHintBanner.visibility = View.GONE
+        btnHint.isEnabled = true
+        btnHint.text = getString(R.string.btn_hint)
+        btnShowWord.isEnabled = true
 
         etWordInput.text.clear()
         etWordInput.isEnabled = true
@@ -316,9 +378,12 @@ class MainActivity : AppCompatActivity() {
     private fun onGameWon() {
         etWordInput.isEnabled = false
         btnSubmitGuess.isEnabled = false
+        btnHint.isEnabled = false
+        btnShowWord.isEnabled = false
 
         val guesses = gameEngine.guessCount
-        val points = gameEngine.calculatePoints()
+        // Points halved if hint was used
+        val points = gameEngine.calculatePoints(isHintUsed)
         val secret = gameEngine.secretWord
 
         // Store into built-in SQLite database
@@ -331,6 +396,21 @@ class MainActivity : AppCompatActivity() {
         tvStatusHint.text = getString(R.string.status_game_won, secret, guesses, points)
 
         showVictoryDialog(secret, guesses, points, updatedStats)
+    }
+
+    private fun onGameForfeited() {
+        gameEngine.forfeitGame()
+        etWordInput.isEnabled = false
+        btnSubmitGuess.isEnabled = false
+        btnHint.isEnabled = false
+        btnShowWord.isEnabled = false
+
+        val secret = gameEngine.secretWord
+        val meaning = WordMeanings.getMeaning(secret)
+
+        tvStatusHint.text = getString(R.string.status_word_revealed, secret)
+
+        showRevealDialog(secret, meaning)
     }
 
     private fun showVictoryDialog(secret: String, guesses: Int, points: Double, stats: GameStats) {
@@ -347,11 +427,39 @@ class MainActivity : AppCompatActivity() {
 
         tvSecretWord.text = secret
         tvGuessesCount.text = guesses.toString()
-        tvPointsEarned.text = String.format(Locale.US, "%.1f pts (100 / %d)", points, guesses)
+
+        val pointsFormat = if (isHintUsed) {
+            String.format(Locale.US, "%.1f pts (100 / %d / 2 [Hint])", points, guesses)
+        } else {
+            String.format(Locale.US, "%.1f pts (100 / %d)", points, guesses)
+        }
+        tvPointsEarned.text = pointsFormat
+
         tvAvgGuesses.text = String.format(Locale.US, "%.2f guesses/game", stats.averageGuesses)
         tvAggPoints.text = String.format(Locale.US, "%.1f pts", stats.aggregatedPoints)
 
         btnPlayAgain.setOnClickListener {
+            dialog.dismiss()
+            startNewGame()
+        }
+
+        dialog.setCancelable(false)
+        dialog.show()
+    }
+
+    private fun showRevealDialog(secret: String, meaning: String) {
+        val dialog = Dialog(this)
+        dialog.setContentView(R.layout.dialog_reveal)
+        dialog.window?.setBackgroundDrawableResource(android.R.color.transparent)
+
+        val tvSecretWord: TextView = dialog.findViewById(R.id.tvRevealSecretWord)
+        val tvMeaning: TextView = dialog.findViewById(R.id.tvRevealMeaning)
+        val btnPlayNext: Button = dialog.findViewById(R.id.btnRevealPlayNext)
+
+        tvSecretWord.text = secret
+        tvMeaning.text = meaning
+
+        btnPlayNext.setOnClickListener {
             dialog.dismiss()
             startNewGame()
         }

@@ -236,6 +236,45 @@
                         android:gravity="center"
                         android:layout_marginBottom="12dp" />
 
+                    <!-- Descriptive Clue Banner (Hidden by default, shown when hint is unlocked) -->
+                    <com.google.android.material.card.MaterialCardView
+                        android:id="@+id/cardHintBanner"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:visibility="gone"
+                        android:layout_marginBottom="12dp"
+                        app:cardCornerRadius="12dp"
+                        app:cardElevation="0dp"
+                        app:strokeWidth="1dp"
+                        app:strokeColor="@color/hint_amber"
+                        app:cardBackgroundColor="@color/hint_amber_light">
+
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:orientation="vertical"
+                            android:padding="12dp">
+
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="💡 Descriptive Meaning (Points Halved):"
+                                android:textSize="12sp"
+                                android:textStyle="bold"
+                                android:textColor="@color/hint_amber" />
+
+                            <TextView
+                                android:id="@+id/tvHintText"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:textSize="13sp"
+                                android:textColor="@color/text_primary"
+                                android:layout_marginTop="4dp"
+                                android:lineSpacingExtra="2dp" />
+
+                        </LinearLayout>
+                    </com.google.android.material.card.MaterialCardView>
+
                     <!-- Input and Submit Button -->
                     <LinearLayout
                         android:layout_width="match_parent"
@@ -284,16 +323,51 @@
 
                     </LinearLayout>
 
-                    <com.google.android.material.button.MaterialButton
-                        android:id="@+id/btnNewGame"
-                        style="@style/Widget.Material3.Button.OutlinedButton"
+                    <!-- Auxiliary Action Row: Get Hint & Show Word -->
+                    <LinearLayout
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:layout_marginTop="12dp"
+                        android:orientation="horizontal"
+                        android:layout_marginTop="12dp">
+
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/btnHint"
+                            style="@style/Widget.Material3.Button.OutlinedButton"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:text="@string/btn_hint"
+                            android:textSize="12sp"
+                            app:cornerRadius="10dp"
+                            android:textColor="@color/hint_amber"
+                            app:strokeColor="@color/hint_amber" />
+
+                        <Space
+                            android:layout_width="8dp"
+                            android:layout_height="wrap_content" />
+
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/btnShowWord"
+                            style="@style/Widget.Material3.Button.OutlinedButton"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:text="@string/btn_show_word"
+                            android:textSize="12sp"
+                            app:cornerRadius="10dp"
+                            android:textColor="@color/danger_red"
+                            app:strokeColor="@color/danger_red" />
+
+                    </LinearLayout>
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/btnNewGame"
+                        style="@style/Widget.Material3.Button.TextButton"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="4dp"
                         android:text="@string/btn_new_game"
-                        app:cornerRadius="12dp"
-                        android:textColor="@color/primary_brand"
-                        app:strokeColor="@color/primary_brand" />
+                        android:textColor="@color/primary_brand" />
 
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
@@ -358,7 +432,7 @@
                         android:orientation="vertical"
                         android:gravity="center_horizontal" />
 
-                    <!-- Self-contained Legend using core theme colors and drawables -->
+                    <!-- Legend: Green for Selected, Red for Eliminated -->
                     <LinearLayout
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
@@ -382,7 +456,7 @@
                         <View
                             android:layout_width="12dp"
                             android:layout_height="12dp"
-                            android:background="@color/primary_brand"
+                            android:background="@color/tracker_selected_green"
                             android:layout_marginEnd="4dp" />
                         <TextView
                             android:layout_width="wrap_content"
@@ -395,7 +469,7 @@
                         <View
                             android:layout_width="12dp"
                             android:layout_height="12dp"
-                            android:background="@color/card_stroke"
+                            android:background="@color/tracker_eliminated_red"
                             android:layout_marginEnd="4dp" />
                         <TextView
                             android:layout_width="wrap_content"

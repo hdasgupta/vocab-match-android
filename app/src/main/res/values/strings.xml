@@ -13,13 +13,24 @@
     <string name="status_secret_chosen">Computer has chosen a secret 4-letter word. Start guessing!</string>
     <string name="status_feedback_format">\"%1$s\": %2$d letters matching with secret word.</string>
     <string name="status_game_won">Solved! Secret word was %1$s in %2$d guesses (%3$.1f points).</string>
+    <string name="status_word_revealed">Secret word was %1$s. Game ended with 0 points.</string>
     
     <string name="hint_enter_word">4-letter word</string>
     <string name="btn_guess">Guess</string>
     <string name="btn_new_game">New Game</string>
 
+    <string name="btn_hint">Get Hint (-50% Pts)</string>
+    <string name="btn_show_word">Show Word</string>
+    <string name="hint_active_badge">💡 Hint Active: Points halved for this game</string>
+    <string name="confirm_hint_title">Request Meaning Clue?</string>
+    <string name="confirm_hint_msg">Revealing a descriptive meaning clue will permanently reduce your points for this game by 50%. Proceed?</string>
+    <string name="confirm_show_word_title">Reveal Secret Word?</string>
+    <string name="confirm_show_word_msg">Revealing the computer\'s secret word will end the game immediately with 0 points. Proceed to reveal?</string>
+    <string name="dialog_revealed_title">Secret Word Revealed</string>
+    <string name="dialog_revealed_points_zero">0.0 pts (Forfeited)</string>
+
     <string name="tracker_box_title">Letter Tracker (A–Z)</string>
-    <string name="tracker_box_subtitle">Tap letters to mark as Selected (candidate) or Eliminated</string>
+    <string name="tracker_box_subtitle">Green = Selected Candidate | Red = Eliminated</string>
     <string name="btn_clear_tracker">Clear</string>
     
     <string name="section_history_title">Guess History</string>
@@ -36,6 +47,7 @@
     <string name="confirm_new_game_msg">The current secret word has not been guessed yet. Do you want to forfeit and start fresh?</string>
     <string name="yes">Yes</string>
     <string name="cancel">Cancel</string>
+    <string name="reveal">Reveal</string>
     
     <string name="reset_stats_title">Reset Stored Database Stats?</string>
     <string name="reset_stats_msg">This will clear all game history and reset aggregated points and average guess metrics to 0.</string>
