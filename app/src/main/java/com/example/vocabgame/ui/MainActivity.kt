@@ -21,10 +21,9 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.example.vocabgame.R
 import com.example.vocabgame.data.DatabaseHelper
+import com.example.vocabgame.data.WordDictionary
 import com.example.vocabgame.logic.GameEngine
 import com.example.vocabgame.model.GameStats
-import java.io.BufferedReader
-import java.io.InputStreamReader
 import java.util.Locale
 
 class MainActivity : AppCompatActivity() {
@@ -62,8 +61,10 @@ class MainActivity : AppCompatActivity() {
         setContentView(R.layout.activity_main)
 
         dbHelper = DatabaseHelper(this)
-        val dictionary = loadDictionary()
-        gameEngine = GameEngine(dictionary)
+        
+        // Initialize comprehensive 5,600+ word dictionary
+        WordDictionary.init(this)
+        gameEngine = GameEngine(WordDictionary.getAllWords())
 
         initViews()
         setupLetterTracker()
@@ -263,7 +264,10 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun startNewGame() {
-        gameEngine.startNewGame()
+        // Choose a familiar, meaningful 4-letter secret word
+        val secret = WordDictionary.getRandomSecretWord()
+        gameEngine.startNewGame(secret)
+
         etWordInput.text.clear()
         etWordInput.isEnabled = true
         btnSubmitGuess.isEnabled = true
@@ -286,7 +290,8 @@ class MainActivity : AppCompatActivity() {
             return
         }
 
-        if (!gameEngine.isValidDictionaryWord(input)) {
+        // Validate guess against 5,600+ word dictionary
+        if (!WordDictionary.isValidWord(input)) {
             Toast.makeText(this, getString(R.string.err_not_meaningful_word, input), Toast.LENGTH_SHORT).show()
             return
         }
@@ -375,26 +380,5 @@ class MainActivity : AppCompatActivity() {
             tvEmptyHistory.visibility = View.GONE
             rvGuesses.visibility = View.VISIBLE
         }
-    }
-
-    private fun loadDictionary(): Set<String> {
-        val set = mutableSetOf<String>()
-        try {
-            assets.open("words.txt").use { inputStream ->
-                BufferedReader(InputStreamReader(inputStream)).use { reader ->
-                    var line: String? = reader.readLine()
-                    while (line != null) {
-                        val trimmed = line.trim().uppercase(Locale.US)
-                        if (trimmed.length == 4) {
-                            set.add(trimmed)
-                        }
-                        line = reader.readLine()
-                    }
-                }
-            }
-        } catch (e: Exception) {
-            set.addAll(listOf("WORD", "GAME", "PLAY", "READ", "WALK", "TALK", "TIME", "HOME", "LOVE", "STAR"))
-        }
-        return set
     }
 }

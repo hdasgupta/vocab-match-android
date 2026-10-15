@@ -1,5 +1,6 @@
 package com.example.vocabgame
 
+import com.example.vocabgame.data.WordDictionary
 import com.example.vocabgame.logic.GameEngine
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -71,5 +72,15 @@ class GameEngineTest {
         engine.evaluateGuess("WORD")
         assertEquals(4, engine.guessCount)
         assertEquals(25.0, engine.calculatePoints(), 0.001)
+    }
+
+    @Test
+    fun testWordDictionaryAcceptsCommonEverydayWords() {
+        val testWords = listOf("CATS", "DOGS", "BOYS", "CARS", "PENS", "DAYS", "EGGS", 
+                               "TREE", "BIRD", "FISH", "COME", "WENT", "SAID", "LOOK", 
+                               "BOOK", "COOK", "TAKE", "GIVE", "FIND", "HELP", "GOOD")
+        for (w in testWords) {
+            assertTrue("Word $w should be valid in WordDictionary", WordDictionary.isValidWord(w))
+        }
     }
 }

@@ -5,7 +5,7 @@ import kotlin.random.Random
 
 /**
  * Handles core game mechanics:
- * - Secret word selection from dictionary.
+ * - Secret word selection.
  * - Validation of input guesses.
  * - Matching letter calculation (multiset intersection count).
  * - Exact position match calculation.
@@ -25,12 +25,17 @@ class GameEngine(private val wordDictionary: Set<String>) {
     val guessHistory = mutableListOf<GuessResult>()
 
     /**
-     * Initializes or restarts the game by picking a random 4-letter word.
+     * Initializes or restarts the game.
+     * Optionally takes an explicit secret word (e.g. from WordDictionary's common secret list).
      */
-    fun startNewGame(): String {
-        require(wordDictionary.isNotEmpty()) { "Dictionary cannot be empty" }
-        val wordsList = wordDictionary.toList()
-        secretWord = wordsList[Random.nextInt(wordsList.size)].uppercase()
+    fun startNewGame(preferredSecret: String? = null): String {
+        secretWord = if (!preferredSecret.isNullOrBlank()) {
+            preferredSecret.trim().uppercase()
+        } else {
+            require(wordDictionary.isNotEmpty()) { "Dictionary cannot be empty" }
+            val wordsList = wordDictionary.toList()
+            wordsList[Random.nextInt(wordsList.size)].uppercase()
+        }
         guessCount = 0
         isGameOver = false
         guessHistory.clear()
@@ -51,7 +56,7 @@ class GameEngine(private val wordDictionary: Set<String>) {
      * Verifies whether a given word is in the dictionary.
      */
     fun isValidDictionaryWord(word: String): Boolean {
-        return wordDictionary.contains(word.uppercase())
+        return wordDictionary.contains(word.trim().uppercase())
     }
 
     /**
@@ -59,7 +64,7 @@ class GameEngine(private val wordDictionary: Set<String>) {
      */
     fun evaluateGuess(guess: String): GuessResult {
         check(!isGameOver) { "Game is already over. Start a new game." }
-        val upperGuess = guess.uppercase()
+        val upperGuess = guess.trim().uppercase()
         guessCount++
 
         val matchingCount = countMatchingLetters(secretWord, upperGuess)
@@ -92,10 +97,6 @@ class GameEngine(private val wordDictionary: Set<String>) {
         /**
          * Calculates the count of matching letters between secret and guess.
          * Uses multiset letter frequencies so duplicate letters are handled accurately.
-         * For example, if secret is "BEAR" and guess is "BIRD":
-         * B: 1, E: 0, A: 0, R: 1 -> Total matching letters = 2.
-         * If secret is "BOOK" and guess is "MOON":
-         * O appears twice in both -> Total matching letters = 2.
          */
         fun countMatchingLetters(secret: String, guess: String): Int {
             val sFreq = IntArray(26)
