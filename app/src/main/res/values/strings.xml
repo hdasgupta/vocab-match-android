@@ -68,6 +68,7 @@
     <string name="chain_section_stats_title">Chain Stats &amp; Average Length</string>
     <string name="chain_label_avg_chain">Avg Chain Count</string>
     <string name="chain_label_user_points">Earned Points</string>
+    <string name="chain_hint_input">Change 1 letter</string>
     <string name="btn_play_word">Play (+2 Pts)</string>
     <string name="btn_surrender">Surrender</string>
     <string name="btn_new_chain_game">New Chain Game</string>
