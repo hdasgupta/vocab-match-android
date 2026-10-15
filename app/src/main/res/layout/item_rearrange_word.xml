@@ -1,0 +1,85 @@
+<?xml version="1.0" encoding="utf-8"?>
+<com.google.android.material.card.MaterialCardView 
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/cardRearrangeWord"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_marginVertical="4dp"
+    app:cardCornerRadius="10dp"
+    app:cardElevation="1dp"
+    app:strokeWidth="1dp"
+    app:strokeColor="@color/card_stroke"
+    app:cardBackgroundColor="@color/card_background">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:paddingHorizontal="14dp"
+        android:paddingVertical="10dp">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical">
+
+            <!-- Checkmark / Star badge -->
+            <TextView
+                android:id="@+id/tvRearrangeStatusBadge"
+                android:layout_width="32dp"
+                android:layout_height="32dp"
+                android:background="@drawable/bg_stat_cell"
+                android:textColor="@color/success_green"
+                android:textStyle="bold"
+                android:textSize="14sp"
+                android:gravity="center"
+                android:text="✓" />
+
+            <Space
+                android:layout_width="12dp"
+                android:layout_height="wrap_content" />
+
+            <!-- Rearranged 4-letter word -->
+            <TextView
+                android:id="@+id/tvRearrangeWord"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="POST"
+                android:fontFamily="monospace"
+                android:textStyle="bold"
+                android:textSize="20sp"
+                android:letterSpacing="0.1"
+                android:textColor="@color/text_primary" />
+
+            <!-- Points badge -->
+            <TextView
+                android:id="@+id/tvRearrangePoints"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="+25 pts"
+                android:textStyle="bold"
+                android:textSize="13sp"
+                android:textColor="@color/success_green"
+                android:background="@drawable/bg_stat_cell"
+                android:paddingHorizontal="10dp"
+                android:paddingVertical="4dp" />
+
+        </LinearLayout>
+
+        <!-- Dictionary Definition -->
+        <TextView
+            android:id="@+id/tvRearrangeMeaning"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Dictionary definition of the rearranged word."
+            android:textSize="12sp"
+            android:textColor="@color/text_secondary"
+            android:layout_marginTop="6dp"
+            android:lineSpacingExtra="2dp" />
+
+    </LinearLayout>
+
+</com.google.android.material.card.MaterialCardView>

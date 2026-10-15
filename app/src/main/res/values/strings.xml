@@ -1,16 +1,19 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">Vocab Games</string>
-    <string name="app_subtitle">Vocabulary Deduction &amp; Word Chains</string>
+    <string name="app_subtitle">Vocabulary Deduction, Chains &amp; Anagrams</string>
 
     <!-- Navigation Drawer -->
     <string name="nav_guess_word">Guess Word</string>
     <string name="nav_change_letter">Change a Letter</string>
+    <string name="nav_rearrange">Rearrange</string>
 
     <string name="title_guess_word">Guess Word</string>
     <string name="title_change_letter">Change a Letter</string>
+    <string name="title_rearrange">Rearrange</string>
     <string name="subtitle_guess_word">4-Letter Vocabulary Deduction Game</string>
     <string name="subtitle_change_letter">4-Letter Word Chain Game</string>
+    <string name="subtitle_rearrange">4-Letter Anagram Discovery Game</string>
     
     <!-- Guess Word Strings -->
     <string name="section_stats_title">Performance &amp; Aggregates</string>
@@ -83,6 +86,25 @@
     <string name="confirm_surrender_msg">Are you unable to form another valid word from \"%1$s\"? Surrendering will finalize your chain score.</string>
     <string name="confirm_reset_chain_stats_title">Reset Chain Stats?</string>
     <string name="confirm_reset_chain_stats_msg">This will clear all word chain records and reset average chain count and points to 0.</string>
+
+    <!-- Rearrange Game Strings -->
+    <string name="rearrange_section_stats_title">Rearrange Statistics &amp; Logs</string>
+    <string name="rearrange_label_avg_words">Avg Words Found</string>
+    <string name="rearrange_hint_input">Rearrange 4 letters</string>
+    <string name="btn_submit_anagram">Submit</string>
+    <string name="btn_finish_round">Finish &amp; Collect</string>
+    <string name="btn_new_rearrange_game">New Word</string>
+    <string name="btn_view_history">History Log</string>
+    <string name="rearrange_words_found_title">Discovered Anagrams</string>
+    <string name="rearrange_empty_hint">No words discovered yet. Rearrange the 4 letters above!</string>
+    <string name="rearrange_status_initial">Rearrange \"%1$s\" into other words! 1st: 25 pts • 2nd: 50 pts • 3rd: 100 pts</string>
+    <string name="rearrange_status_progress">Found %1$d of %2$d words • Total Points: %3$d pts</string>
+    <string name="rearrange_dialog_history_title">Historical Games (Database)</string>
+    <string name="rearrange_history_empty">No completed games recorded in the database yet.</string>
+    <string name="confirm_finish_rearrange_title">Finish Round?</string>
+    <string name="confirm_finish_rearrange_msg">Finishing will store your earned points (+%1$d pts) in the database and reveal any words you missed. Proceed?</string>
+    <string name="confirm_reset_rearrange_stats_title">Reset Rearrange Stats?</string>
+    <string name="confirm_reset_rearrange_stats_msg">This will clear all historical rearrange records and reset your stats to 0.</string>
 
     <plurals name="letters_matching_format">
         <item quantity="one">%1$d letter matching</item>

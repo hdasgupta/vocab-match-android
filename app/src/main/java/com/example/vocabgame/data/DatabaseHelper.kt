@@ -6,21 +6,26 @@ import android.database.sqlite.SQLiteDatabase
 import android.database.sqlite.SQLiteOpenHelper
 import com.example.vocabgame.model.ChainGameStats
 import com.example.vocabgame.model.GameStats
+import com.example.vocabgame.model.RearrangeGameStats
+import com.example.vocabgame.model.RearrangeRecord
 
 /**
  * SQLiteOpenHelper implementation utilizing Android's built-in SQLite database engine.
  *
- * Persists each game outcome and maintains aggregated statistics for both:
+ * Persists each game outcome and maintains aggregated statistics for all three game modes:
  * 1. "Guess Word" (Deduction vocabulary game)
  * 2. "Change a Letter" (Word chain game)
+ * 3. "Rearrange" (Anagram discovery game)
  */
 class DatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME, null, DATABASE_VERSION) {
 
     companion object {
         const val DATABASE_NAME = "vocab_game.db"
-        const val DATABASE_VERSION = 2
+        const val DATABASE_VERSION = 3
 
-        // Table: game_records (Guess Word game history)
+        // ==========================================
+        // 1. Guess Word Tables
+        // ==========================================
         const val TABLE_GAMES = "game_records"
         const val COL_ID = "id"
         const val COL_SECRET_WORD = "secret_word"
@@ -28,14 +33,15 @@ class DatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME
         const val COL_POINTS = "points"
         const val COL_TIMESTAMP = "timestamp"
 
-        // Table: aggregated_stats (Guess Word persistent totals)
         const val TABLE_AGGREGATED = "aggregated_stats"
         const val COL_AGG_ID = "id"
         const val COL_TOTAL_GAMES = "total_games"
         const val COL_TOTAL_POINTS = "total_points"
         const val COL_TOTAL_GUESSES = "total_guesses"
 
-        // Table: chain_game_records (Change a Letter game history)
+        // ==========================================
+        // 2. Change a Letter Tables
+        // ==========================================
         const val TABLE_CHAIN_GAMES = "chain_game_records"
         const val COL_CHAIN_ID = "id"
         const val COL_CHAIN_LENGTH = "chain_length"
@@ -44,13 +50,30 @@ class DatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME
         const val COL_CHAIN_WINNER = "winner"
         const val COL_CHAIN_TIMESTAMP = "timestamp"
 
-        // Table: chain_aggregated_stats (Change a Letter persistent totals)
         const val TABLE_CHAIN_AGGREGATED = "chain_aggregated_stats"
         const val COL_CHAIN_AGG_ID = "id"
         const val COL_TOTAL_CHAIN_GAMES = "total_games"
         const val COL_TOTAL_CHAIN_LENGTH = "total_chain_length"
         const val COL_TOTAL_CHAIN_USER_WORDS = "total_user_words"
         const val COL_TOTAL_CHAIN_POINTS = "total_points"
+
+        // ==========================================
+        // 3. Rearrange Tables
+        // ==========================================
+        const val TABLE_REARRANGE_GAMES = "rearrange_game_records"
+        const val COL_REARRANGE_ID = "id"
+        const val COL_REARRANGE_BASE_WORD = "base_word"
+        const val COL_REARRANGE_WORDS_FOUND = "words_found_count"
+        const val COL_REARRANGE_WORDS_CSV = "words_found_csv"
+        const val COL_REARRANGE_POSSIBLE_WORDS = "possible_words_count"
+        const val COL_REARRANGE_POINTS = "points"
+        const val COL_REARRANGE_TIMESTAMP = "timestamp"
+
+        const val TABLE_REARRANGE_AGGREGATED = "rearrange_aggregated_stats"
+        const val COL_REARRANGE_AGG_ID = "id"
+        const val COL_TOTAL_REARRANGE_GAMES = "total_games"
+        const val COL_TOTAL_REARRANGE_WORDS = "total_words_found"
+        const val COL_TOTAL_REARRANGE_POINTS = "total_points"
     }
 
     override fun onCreate(db: SQLiteDatabase) {
@@ -84,6 +107,7 @@ class DatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME
         db.insert(TABLE_AGGREGATED, null, initialValues)
 
         createChainTables(db)
+        createRearrangeTables(db)
     }
 
     private fun createChainTables(db: SQLiteDatabase) {
@@ -120,14 +144,50 @@ class DatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME
         db.insertWithOnConflict(TABLE_CHAIN_AGGREGATED, null, chainInitial, SQLiteDatabase.CONFLICT_IGNORE)
     }
 
+    private fun createRearrangeTables(db: SQLiteDatabase) {
+        // Table 5: Rearrange historical game records
+        db.execSQL("""
+            CREATE TABLE IF NOT EXISTS $TABLE_REARRANGE_GAMES (
+                $COL_REARRANGE_ID INTEGER PRIMARY KEY AUTOINCREMENT,
+                $COL_REARRANGE_BASE_WORD TEXT NOT NULL,
+                $COL_REARRANGE_WORDS_FOUND INTEGER NOT NULL,
+                $COL_REARRANGE_WORDS_CSV TEXT NOT NULL,
+                $COL_REARRANGE_POSSIBLE_WORDS INTEGER NOT NULL,
+                $COL_REARRANGE_POINTS INTEGER NOT NULL,
+                $COL_REARRANGE_TIMESTAMP INTEGER NOT NULL
+            );
+        """.trimIndent())
+
+        // Table 6: Rearrange aggregated totals
+        db.execSQL("""
+            CREATE TABLE IF NOT EXISTS $TABLE_REARRANGE_AGGREGATED (
+                $COL_REARRANGE_AGG_ID INTEGER PRIMARY KEY,
+                $COL_TOTAL_REARRANGE_GAMES INTEGER DEFAULT 0,
+                $COL_TOTAL_REARRANGE_WORDS INTEGER DEFAULT 0,
+                $COL_TOTAL_REARRANGE_POINTS INTEGER DEFAULT 0
+            );
+        """.trimIndent())
+
+        val rearrangeInitial = ContentValues().apply {
+            put(COL_REARRANGE_AGG_ID, 1)
+            put(COL_TOTAL_REARRANGE_GAMES, 0)
+            put(COL_TOTAL_REARRANGE_WORDS, 0)
+            put(COL_TOTAL_REARRANGE_POINTS, 0)
+        }
+        db.insertWithOnConflict(TABLE_REARRANGE_AGGREGATED, null, rearrangeInitial, SQLiteDatabase.CONFLICT_IGNORE)
+    }
+
     override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
         if (oldVersion < 2) {
             createChainTables(db)
         }
+        if (oldVersion < 3) {
+            createRearrangeTables(db)
+        }
     }
 
     // ==========================================
-    // Guess Word Methods
+    // 1. Guess Word Methods
     // ==========================================
 
     @Synchronized
@@ -207,7 +267,7 @@ class DatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME
     }
 
     // ==========================================
-    // Change a Letter Methods
+    // 2. Change a Letter Methods
     // ==========================================
 
     @Synchronized
@@ -281,6 +341,124 @@ class DatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME
                 put(COL_TOTAL_CHAIN_POINTS, 0)
             }
             db.update(TABLE_CHAIN_AGGREGATED, resetValues, "$COL_CHAIN_AGG_ID = ?", arrayOf("1"))
+            db.setTransactionSuccessful()
+        } finally {
+            db.endTransaction()
+        }
+    }
+
+    // ==========================================
+    // 3. Rearrange Methods
+    // ==========================================
+
+    @Synchronized
+    fun recordRearrangeGame(baseWord: String, wordsFound: List<String>, possibleWordsCount: Int, points: Int) {
+        val db = writableDatabase
+        db.beginTransaction()
+        try {
+            val csv = wordsFound.joinToString(",")
+            val recordValues = ContentValues().apply {
+                put(COL_REARRANGE_BASE_WORD, baseWord)
+                put(COL_REARRANGE_WORDS_FOUND, wordsFound.size)
+                put(COL_REARRANGE_WORDS_CSV, csv)
+                put(COL_REARRANGE_POSSIBLE_WORDS, possibleWordsCount)
+                put(COL_REARRANGE_POINTS, points)
+                put(COL_REARRANGE_TIMESTAMP, System.currentTimeMillis())
+            }
+            db.insert(TABLE_REARRANGE_GAMES, null, recordValues)
+
+            db.execSQL("""
+                UPDATE $TABLE_REARRANGE_AGGREGATED
+                SET $COL_TOTAL_REARRANGE_GAMES = $COL_TOTAL_REARRANGE_GAMES + 1,
+                    $COL_TOTAL_REARRANGE_WORDS = $COL_TOTAL_REARRANGE_WORDS + ?,
+                    $COL_TOTAL_REARRANGE_POINTS = $COL_TOTAL_REARRANGE_POINTS + ?
+                WHERE $COL_REARRANGE_AGG_ID = 1
+            """.trimIndent(), arrayOf(wordsFound.size, points))
+
+            db.setTransactionSuccessful()
+        } finally {
+            db.endTransaction()
+        }
+    }
+
+    fun getRearrangeAggregatedStats(): RearrangeGameStats {
+        val db = readableDatabase
+        val cursor = db.rawQuery(
+            "SELECT $COL_TOTAL_REARRANGE_GAMES, $COL_TOTAL_REARRANGE_WORDS, $COL_TOTAL_REARRANGE_POINTS FROM $TABLE_REARRANGE_AGGREGATED WHERE $COL_REARRANGE_AGG_ID = 1",
+            null
+        )
+
+        var totalGames = 0
+        var totalWords = 0
+        var totalPoints = 0
+
+        cursor.use {
+            if (it.moveToFirst()) {
+                totalGames = it.getInt(0)
+                totalWords = it.getInt(1)
+                totalPoints = it.getInt(2)
+            }
+        }
+
+        val avgWords = if (totalGames > 0) totalWords.toDouble() / totalGames else 0.0
+        val avgPoints = if (totalGames > 0) totalPoints.toDouble() / totalGames else 0.0
+
+        return RearrangeGameStats(
+            totalGames = totalGames,
+            totalPoints = totalPoints,
+            totalWordsFound = totalWords,
+            averageWordsPerGame = avgWords,
+            averagePointsPerGame = avgPoints
+        )
+    }
+
+    fun getRearrangeHistory(limit: Int = 50): List<RearrangeRecord> {
+        val list = mutableListOf<RearrangeRecord>()
+        val db = readableDatabase
+        val cursor = db.rawQuery(
+            "SELECT $COL_REARRANGE_ID, $COL_REARRANGE_BASE_WORD, $COL_REARRANGE_WORDS_FOUND, $COL_REARRANGE_WORDS_CSV, $COL_REARRANGE_POSSIBLE_WORDS, $COL_REARRANGE_POINTS, $COL_REARRANGE_TIMESTAMP FROM $TABLE_REARRANGE_GAMES ORDER BY $COL_REARRANGE_TIMESTAMP DESC LIMIT ?",
+            arrayOf(limit.toString())
+        )
+
+        cursor.use {
+            while (it.moveToNext()) {
+                val id = it.getLong(0)
+                val base = it.getString(1)
+                val foundCount = it.getInt(2)
+                val csv = it.getString(3)
+                val possible = it.getInt(4)
+                val pts = it.getInt(5)
+                val ts = it.getLong(6)
+
+                val wordsList = if (csv.isNotBlank()) csv.split(",") else emptyList()
+                list.add(
+                    RearrangeRecord(
+                        id = id,
+                        baseWord = base,
+                        wordsFoundCount = foundCount,
+                        wordsFoundList = wordsList,
+                        possibleWordsCount = possible,
+                        points = pts,
+                        timestamp = ts
+                    )
+                )
+            }
+        }
+        return list
+    }
+
+    @Synchronized
+    fun resetRearrangeStats() {
+        val db = writableDatabase
+        db.beginTransaction()
+        try {
+            db.delete(TABLE_REARRANGE_GAMES, null, null)
+            val resetValues = ContentValues().apply {
+                put(COL_TOTAL_REARRANGE_GAMES, 0)
+                put(COL_TOTAL_REARRANGE_WORDS, 0)
+                put(COL_TOTAL_REARRANGE_POINTS, 0)
+            }
+            db.update(TABLE_REARRANGE_AGGREGATED, resetValues, "$COL_REARRANGE_AGG_ID = ?", arrayOf("1"))
             db.setTransactionSuccessful()
         } finally {
             db.endTransaction()

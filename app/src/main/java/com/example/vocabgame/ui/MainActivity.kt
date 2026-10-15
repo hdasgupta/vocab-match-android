@@ -25,6 +25,11 @@ import com.example.vocabgame.R
 import com.example.vocabgame.data.DatabaseHelper
 import com.example.vocabgame.data.WordDictionary
 import com.example.vocabgame.data.WordMeanings
+import com.example.vocabgame.logic.RearrangeEngine
+import com.example.vocabgame.logic.RearrangeSubmitResult
+import com.example.vocabgame.model.RearrangeGameStats
+import com.example.vocabgame.model.RearrangeRecord
+import com.example.vocabgame.model.RearrangeWordEntry
 import com.example.vocabgame.logic.ChangeLetterEngine
 import com.example.vocabgame.logic.ComputerPlayResult
 import com.example.vocabgame.logic.GameEngine
@@ -44,6 +49,13 @@ class MainActivity : AppCompatActivity() {
         private const val KEY_ACTIVE_GAME = "key_active_game"
         private const val GAME_GUESS_WORD = "game_guess_word"
         private const val GAME_CHANGE_LETTER = "game_change_letter"
+        private const val GAME_REARRANGE = "game_rearrange"
+
+        // Rearrange state keys
+        private const val KEY_REARRANGE_BASE_WORD = "key_rearrange_base_word"
+        private const val KEY_REARRANGE_FOUND_WORDS = "key_rearrange_found_words"
+        private const val KEY_REARRANGE_IS_GAME_OVER = "key_rearrange_is_game_over"
+        private const val KEY_REARRANGE_STATUS = "key_rearrange_status"
 
         // Guess Word state keys
         private const val KEY_SECRET_WORD = "key_secret_word"
@@ -75,6 +87,29 @@ class MainActivity : AppCompatActivity() {
     private lateinit var dbHelper: DatabaseHelper
     private lateinit var gameEngine: GameEngine
     private lateinit var chainEngine: ChangeLetterEngine
+    private lateinit var rearrangeEngine: RearrangeEngine
+
+    private lateinit var layoutRearrangeContainer: LinearLayout
+
+    // Rearrange Views
+    private lateinit var rearrangeWordAdapter: RearrangeWordAdapter
+    private lateinit var tvRearrangeTotalPoints: TextView
+    private lateinit var tvRearrangeAvgWords: TextView
+    private lateinit var tvRearrangeTotalGames: TextView
+    private lateinit var tvRearrangeAvgPoints: TextView
+    private lateinit var btnViewRearrangeHistory: Button
+    private lateinit var btnResetRearrangeStats: Button
+
+    private lateinit var tvRearrangeBaseWord: TextView
+    private lateinit var tvRearrangeProgress: TextView
+    private lateinit var tvRearrangeCurrentPoints: TextView
+    private lateinit var tvRearrangeStatus: TextView
+    private lateinit var etRearrangeInput: EditText
+    private lateinit var btnSubmitRearrangeWord: Button
+    private lateinit var btnFinishRearrangeRound: Button
+    private lateinit var btnNewRearrangeGame: Button
+    private lateinit var rvRearrangeWords: RecyclerView
+    private lateinit var tvEmptyRearrangeWords: TextView
 
     // Navigation & Toolbar
     private lateinit var drawerLayout: DrawerLayout
@@ -142,6 +177,7 @@ class MainActivity : AppCompatActivity() {
         WordDictionary.init(this)
         gameEngine = GameEngine(WordDictionary.getAllWords())
         chainEngine = ChangeLetterEngine(WordDictionary.getAllWords())
+        rearrangeEngine = RearrangeEngine(WordDictionary.getAllWords())
 
         initViews()
         setupNavigationDrawer()
@@ -149,12 +185,14 @@ class MainActivity : AppCompatActivity() {
         setupListeners()
         refreshStats()
         refreshChainStats()
+        refreshRearrangeStats()
 
         if (savedInstanceState != null) {
             restoreAllState(savedInstanceState)
         } else {
             startNewGame()
             startNewChainGame()
+            startNewRearrangeGame()
             switchToGame(GAME_GUESS_WORD)
         }
     }
@@ -166,6 +204,35 @@ class MainActivity : AppCompatActivity() {
         toolbar = findViewById(R.id.toolbar)
         layoutGuessWordContainer = findViewById(R.id.layoutGuessWordContainer)
         layoutChangeLetterContainer = findViewById(R.id.layoutChangeLetterContainer)
+        layoutRearrangeContainer = findViewById(R.id.layoutRearrangeContainer)
+
+        // Rearrange Views Binding
+        tvRearrangeTotalPoints = findViewById(R.id.tvRearrangeTotalPoints)
+        tvRearrangeAvgWords = findViewById(R.id.tvRearrangeAvgWords)
+        tvRearrangeTotalGames = findViewById(R.id.tvRearrangeTotalGames)
+        tvRearrangeAvgPoints = findViewById(R.id.tvRearrangeAvgPoints)
+        btnViewRearrangeHistory = findViewById(R.id.btnViewRearrangeHistory)
+        btnResetRearrangeStats = findViewById(R.id.btnResetRearrangeStats)
+
+        tvRearrangeBaseWord = findViewById(R.id.tvRearrangeBaseWord)
+        tvRearrangeProgress = findViewById(R.id.tvRearrangeProgress)
+        tvRearrangeCurrentPoints = findViewById(R.id.tvRearrangeCurrentPoints)
+        tvRearrangeStatus = findViewById(R.id.tvRearrangeStatus)
+        etRearrangeInput = findViewById(R.id.etRearrangeInput)
+        btnSubmitRearrangeWord = findViewById(R.id.btnSubmitRearrangeWord)
+        btnFinishRearrangeRound = findViewById(R.id.btnFinishRearrangeRound)
+        btnNewRearrangeGame = findViewById(R.id.btnNewRearrangeGame)
+        rvRearrangeWords = findViewById(R.id.rvRearrangeWords)
+        tvEmptyRearrangeWords = findViewById(R.id.tvEmptyRearrangeWords)
+
+        etRearrangeInput.filters = arrayOf(InputFilter.LengthFilter(4), InputFilter.AllCaps())
+        rearrangeWordAdapter = RearrangeWordAdapter()
+        val rearrangeLayoutManager = LinearLayoutManager(this).apply {
+            reverseLayout = true
+            stackFromEnd = true
+        }
+        rvRearrangeWords.layoutManager = rearrangeLayoutManager
+        rvRearrangeWords.adapter = rearrangeWordAdapter
 
         // Guess Word Views
         tvTotalGames = findViewById(R.id.tvTotalGames)
@@ -242,6 +309,11 @@ class MainActivity : AppCompatActivity() {
                     drawerLayout.closeDrawer(GravityCompat.START)
                     true
                 }
+                R.id.nav_rearrange -> {
+                    switchToGame(GAME_REARRANGE)
+                    drawerLayout.closeDrawer(GravityCompat.START)
+                    true
+                }
                 else -> false
             }
         }
@@ -249,18 +321,31 @@ class MainActivity : AppCompatActivity() {
 
     private fun switchToGame(gameMode: String) {
         activeGameMode = gameMode
-        if (gameMode == GAME_GUESS_WORD) {
-            layoutGuessWordContainer.visibility = View.VISIBLE
-            layoutChangeLetterContainer.visibility = View.GONE
-            toolbar.title = getString(R.string.title_guess_word)
-            toolbar.subtitle = getString(R.string.subtitle_guess_word)
-            navView.setCheckedItem(R.id.nav_guess_word)
-        } else {
-            layoutGuessWordContainer.visibility = View.GONE
-            layoutChangeLetterContainer.visibility = View.VISIBLE
-            toolbar.title = getString(R.string.title_change_letter)
-            toolbar.subtitle = getString(R.string.subtitle_change_letter)
-            navView.setCheckedItem(R.id.nav_change_letter)
+        when (gameMode) {
+            GAME_GUESS_WORD -> {
+                layoutGuessWordContainer.visibility = View.VISIBLE
+                layoutChangeLetterContainer.visibility = View.GONE
+                layoutRearrangeContainer.visibility = View.GONE
+                toolbar.title = getString(R.string.title_guess_word)
+                toolbar.subtitle = getString(R.string.subtitle_guess_word)
+                navView.setCheckedItem(R.id.nav_guess_word)
+            }
+            GAME_CHANGE_LETTER -> {
+                layoutGuessWordContainer.visibility = View.GONE
+                layoutChangeLetterContainer.visibility = View.VISIBLE
+                layoutRearrangeContainer.visibility = View.GONE
+                toolbar.title = getString(R.string.title_change_letter)
+                toolbar.subtitle = getString(R.string.subtitle_change_letter)
+                navView.setCheckedItem(R.id.nav_change_letter)
+            }
+            GAME_REARRANGE -> {
+                layoutGuessWordContainer.visibility = View.GONE
+                layoutChangeLetterContainer.visibility = View.GONE
+                layoutRearrangeContainer.visibility = View.VISIBLE
+                toolbar.title = getString(R.string.title_rearrange)
+                toolbar.subtitle = getString(R.string.subtitle_rearrange)
+                navView.setCheckedItem(R.id.nav_rearrange)
+            }
         }
     }
 
@@ -465,6 +550,30 @@ class MainActivity : AppCompatActivity() {
                     dbHelper.resetChainStats()
                     refreshChainStats()
                     Toast.makeText(this, "Change a Letter stats reset.", Toast.LENGTH_SHORT).show()
+                }
+                .setNegativeButton(R.string.cancel, null)
+                .show()
+        }
+
+        // Rearrange Listeners
+        btnSubmitRearrangeWord.setOnClickListener { handleRearrangeWordSubmission() }
+        etRearrangeInput.setOnEditorActionListener { _, actionId, _ ->
+            if (actionId == EditorInfo.IME_ACTION_DONE) {
+                handleRearrangeWordSubmission()
+                true
+            } else false
+        }
+        btnFinishRearrangeRound.setOnClickListener { handleFinishRearrangeRound() }
+        btnNewRearrangeGame.setOnClickListener { startNewRearrangeGame() }
+        btnViewRearrangeHistory.setOnClickListener { showRearrangeHistoryDialog() }
+        btnResetRearrangeStats.setOnClickListener {
+            AlertDialog.Builder(this)
+                .setTitle(R.string.confirm_reset_rearrange_stats_title)
+                .setMessage(R.string.confirm_reset_rearrange_stats_msg)
+                .setPositiveButton(R.string.reset) { _, _ ->
+                    dbHelper.resetRearrangeStats()
+                    refreshRearrangeStats()
+                    Toast.makeText(this, "Rearrange statistics reset.", Toast.LENGTH_SHORT).show()
                 }
                 .setNegativeButton(R.string.cancel, null)
                 .show()
@@ -931,6 +1040,12 @@ class MainActivity : AppCompatActivity() {
 
         val chainUsedList = ArrayList<String>(chainEngine.usedWords)
         outState.putStringArrayList(KEY_CHAIN_USED_WORDS, chainUsedList)
+
+        // Save Rearrange state
+        outState.putString(KEY_REARRANGE_BASE_WORD, rearrangeEngine.baseWord)
+        outState.putBoolean(KEY_REARRANGE_IS_GAME_OVER, rearrangeEngine.isGameOver)
+        outState.putStringArrayList(KEY_REARRANGE_FOUND_WORDS, ArrayList(rearrangeEngine.foundWords))
+        outState.putString(KEY_REARRANGE_STATUS, tvRearrangeStatus.text.toString())
     }
 
     private fun restoreAllState(bundle: Bundle) {
@@ -1043,8 +1158,310 @@ class MainActivity : AppCompatActivity() {
             btnChainSurrender.isEnabled = true
         }
 
+        // Restore Rearrange
+        val rearrangeBase = bundle.getString(KEY_REARRANGE_BASE_WORD) ?: ""
+        val rearrangeGameOver = bundle.getBoolean(KEY_REARRANGE_IS_GAME_OVER, false)
+        val rearrangeFound = bundle.getStringArrayList(KEY_REARRANGE_FOUND_WORDS)?.toSet() ?: emptySet()
+        rearrangeEngine.restoreState(rearrangeBase, rearrangeFound, rearrangeGameOver)
+
+        if (rearrangeGameOver) {
+            val combined = mutableListOf<RearrangeWordEntry>()
+            combined.addAll(rearrangeEngine.getFoundWordEntries())
+            combined.addAll(rearrangeEngine.getMissedWords())
+            rearrangeWordAdapter.submitList(combined)
+            etRearrangeInput.isEnabled = false
+            btnSubmitRearrangeWord.isEnabled = false
+            btnFinishRearrangeRound.isEnabled = false
+        } else {
+            rearrangeWordAdapter.submitList(rearrangeEngine.getFoundWordEntries())
+            etRearrangeInput.isEnabled = true
+            btnSubmitRearrangeWord.isEnabled = true
+            btnFinishRearrangeRound.isEnabled = true
+        }
+        updateRearrangeViews()
+        tvRearrangeStatus.text = bundle.getString(KEY_REARRANGE_STATUS) ?: "Rearrange into other valid words!"
+
         // Restore active game mode
         val activeGame = bundle.getString(KEY_ACTIVE_GAME) ?: GAME_GUESS_WORD
         switchToGame(activeGame)
     }
+
+    // ==========================================
+    // Rearrange Game Mechanics
+    // ==========================================
+
+    private fun startNewRearrangeGame() {
+        val base = rearrangeEngine.startNewGame()
+        etRearrangeInput.text.clear()
+        etRearrangeInput.isEnabled = true
+        btnSubmitRearrangeWord.isEnabled = true
+        btnFinishRearrangeRound.isEnabled = true
+
+        rearrangeWordAdapter.submitList(emptyList())
+        updateRearrangeViews()
+        tvRearrangeStatus.text = getString(R.string.rearrange_status_initial, base)
+    }
+
+    private fun handleRearrangeWordSubmission() {
+        val input = etRearrangeInput.text.toString().trim().uppercase(Locale.US)
+        when (val result = rearrangeEngine.submitWord(input)) {
+            is RearrangeSubmitResult.Error -> {
+                Toast.makeText(this, result.message, Toast.LENGTH_SHORT).show()
+            }
+            is RearrangeSubmitResult.Success -> {
+                etRearrangeInput.text.clear()
+                rearrangeWordAdapter.submitList(rearrangeEngine.getFoundWordEntries())
+                updateRearrangeViews()
+                rvRearrangeWords.smoothScrollToPosition(rearrangeWordAdapter.itemCount - 1)
+
+                Toast.makeText(this, "+${result.pointsEarnedThisWord} points! (${result.totalPoints} total)", Toast.LENGTH_SHORT).show()
+
+                if (result.isAllFound) {
+                    onRearrangeAllWordsFound()
+                } else {
+                    tvRearrangeStatus.text = getString(
+                        R.string.rearrange_status_progress,
+                        result.wordsFoundCount,
+                        result.totalPossibleCount,
+                        result.totalPoints
+                    )
+                }
+            }
+        }
+    }
+
+    private fun onRearrangeAllWordsFound() {
+        etRearrangeInput.isEnabled = false
+        btnSubmitRearrangeWord.isEnabled = false
+        btnFinishRearrangeRound.isEnabled = false
+
+        val points = rearrangeEngine.calculatePoints()
+        val foundList = rearrangeEngine.foundWords.toList()
+        val base = rearrangeEngine.baseWord
+        val possibleCount = rearrangeEngine.allPossibleAnagrams.size
+
+        // Record in SQLite database
+        dbHelper.recordRearrangeGame(base, foundList, possibleCount, points)
+        refreshRearrangeStats()
+
+        showRearrangeOutcomeDialog(
+            title = "🏆 All Anagrams Discovered!",
+            message = "Brilliant! You found all $possibleCount words that can be rearranged from '$base'.",
+            wordsFoundCount = foundList.size,
+            possibleCount = possibleCount,
+            points = points
+        )
+    }
+
+    private fun handleFinishRearrangeRound() {
+        if (rearrangeEngine.isGameOver) return
+
+        val currentPoints = rearrangeEngine.calculatePoints()
+        val base = rearrangeEngine.baseWord
+        val foundList = rearrangeEngine.foundWords.toList()
+        val possibleCount = rearrangeEngine.allPossibleAnagrams.size
+
+        AlertDialog.Builder(this)
+            .setTitle(R.string.confirm_finish_rearrange_title)
+            .setMessage(getString(R.string.confirm_finish_rearrange_msg, currentPoints))
+            .setPositiveButton("Finish & Reveal") { _, _ ->
+                val finalPoints = rearrangeEngine.finishGame()
+                etRearrangeInput.isEnabled = false
+                btnSubmitRearrangeWord.isEnabled = false
+                btnFinishRearrangeRound.isEnabled = false
+
+                // Record in SQLite database
+                dbHelper.recordRearrangeGame(base, foundList, possibleCount, finalPoints)
+                refreshRearrangeStats()
+
+                // Display all words (found + missed) in the adapter
+                val combined = mutableListOf<RearrangeWordEntry>()
+                combined.addAll(rearrangeEngine.getFoundWordEntries())
+                combined.addAll(rearrangeEngine.getMissedWords())
+                rearrangeWordAdapter.submitList(combined)
+                updateRearrangeViews()
+
+                showRearrangeOutcomeDialog(
+                    title = "Round Finished",
+                    message = "You discovered ${foundList.size} of $possibleCount possible words from '$base'.\nCheck the list below to study the missed words and definitions!",
+                    wordsFoundCount = foundList.size,
+                    possibleCount = possibleCount,
+                    points = finalPoints
+                )
+            }
+            .setNegativeButton(R.string.cancel, null)
+            .show()
+    }
+
+    private fun updateRearrangeViews() {
+        tvRearrangeBaseWord.text = rearrangeEngine.baseWord
+        val found = rearrangeEngine.foundWords.size
+        val totalPossible = rearrangeEngine.allPossibleAnagrams.size
+        val currentPts = rearrangeEngine.calculatePoints()
+
+        tvRearrangeProgress.text = "Found: $found / $totalPossible words"
+        tvRearrangeCurrentPoints.text = "Score: $currentPts pts"
+
+        if (rearrangeWordAdapter.itemCount == 0) {
+            tvEmptyRearrangeWords.visibility = View.VISIBLE
+            rvRearrangeWords.visibility = View.GONE
+        } else {
+            tvEmptyRearrangeWords.visibility = View.GONE
+            rvRearrangeWords.visibility = View.VISIBLE
+        }
+    }
+
+    private fun refreshRearrangeStats() {
+        val stats = dbHelper.getRearrangeAggregatedStats()
+        tvRearrangeTotalPoints.text = "${stats.totalPoints} pts"
+        tvRearrangeAvgWords.text = String.format(Locale.US, "%.1f", stats.averageWordsPerGame)
+        tvRearrangeTotalGames.text = stats.totalGames.toString()
+        tvRearrangeAvgPoints.text = String.format(Locale.US, "%.1f", stats.averagePointsPerGame)
+    }
+
+    private fun showRearrangeOutcomeDialog(title: String, message: String, wordsFoundCount: Int, possibleCount: Int, points: Int) {
+        val dialog = Dialog(this)
+        val density = resources.displayMetrics.density
+        val padding = (24 * density).toInt()
+
+        val card = MaterialCardView(this).apply {
+            radius = 20f * density
+            cardElevation = 6f * density
+            setStrokeColor(ContextCompat.getColor(this@MainActivity, R.color.primary_brand))
+            strokeWidth = (2 * density).toInt()
+            setCardBackgroundColor(ContextCompat.getColor(this@MainActivity, R.color.card_background))
+        }
+
+        val layout = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            gravity = Gravity.CENTER_HORIZONTAL
+            setPadding(padding, padding, padding, padding)
+        }
+
+        val titleView = TextView(this).apply {
+            text = title
+            textSize = 20f
+            typeface = Typeface.DEFAULT_BOLD
+            setTextColor(ContextCompat.getColor(this@MainActivity, R.color.text_primary))
+            gravity = Gravity.CENTER
+        }
+
+        val msgView = TextView(this).apply {
+            text = message
+            textSize = 13f
+            setTextColor(ContextCompat.getColor(this@MainActivity, R.color.text_secondary))
+            gravity = Gravity.CENTER
+            setPadding(0, (8 * density).toInt(), 0, (14 * density).toInt())
+            setLineSpacing(2f * density, 1f)
+        }
+
+        val scoreBadge = TextView(this).apply {
+            text = "Total Points Earned: +$points pts\n(Stored in SQLite Database)"
+            textSize = 14f
+            typeface = Typeface.DEFAULT_BOLD
+            setTextColor(ContextCompat.getColor(this@MainActivity, R.color.success_green))
+            gravity = Gravity.CENTER
+            setPadding(0, 0, 0, (16 * density).toInt())
+        }
+
+        val btnPlayNext = com.google.android.material.button.MaterialButton(this).apply {
+            text = "Play Next Word"
+            textSize = 15f
+            cornerRadius = (12 * density).toInt()
+            setBackgroundColor(ContextCompat.getColor(this@MainActivity, R.color.primary_brand))
+            setOnClickListener {
+                dialog.dismiss()
+                startNewRearrangeGame()
+            }
+        }
+
+        layout.addView(titleView)
+        layout.addView(msgView)
+        layout.addView(scoreBadge)
+        layout.addView(btnPlayNext)
+        card.addView(layout)
+
+        dialog.setContentView(card)
+        dialog.window?.setBackgroundDrawableResource(android.R.color.transparent)
+        dialog.setCancelable(false)
+        dialog.show()
+    }
+
+    private fun showRearrangeHistoryDialog() {
+        val dialog = Dialog(this)
+        val density = resources.displayMetrics.density
+        val padding = (20 * density).toInt()
+
+        val card = MaterialCardView(this).apply {
+            radius = 18f * density
+            cardElevation = 6f * density
+            setStrokeColor(ContextCompat.getColor(this@MainActivity, R.color.card_stroke))
+            strokeWidth = (1.5f * density).toInt()
+            setCardBackgroundColor(ContextCompat.getColor(this@MainActivity, R.color.card_background))
+        }
+
+        val layout = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(padding, padding, padding, padding)
+        }
+
+        val titleView = TextView(this).apply {
+            text = getString(R.string.rearrange_dialog_history_title)
+            textSize = 18f
+            typeface = Typeface.DEFAULT_BOLD
+            setTextColor(ContextCompat.getColor(this@MainActivity, R.color.text_primary))
+        }
+
+        val subtitleView = TextView(this).apply {
+            text = "Historical records persisted in SQLite database"
+            textSize = 12sp.toFloat()
+            setTextColor(ContextCompat.getColor(this@MainActivity, R.color.text_secondary))
+            setPadding(0, (2 * density).toInt(), 0, (12 * density).toInt())
+        }
+
+        val historyList = dbHelper.getRearrangeHistory(50)
+        val rvHistory = RecyclerView(this).apply {
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                (320 * density).toInt()
+            )
+            layoutManager = LinearLayoutManager(this@MainActivity)
+        }
+
+        val adapter = RearrangeHistoryAdapter()
+        rvHistory.adapter = adapter
+        adapter.submitList(historyList)
+
+        val emptyView = TextView(this).apply {
+            text = getString(R.string.rearrange_history_empty)
+            textSize = 13f
+            setTextColor(ContextCompat.getColor(this@MainActivity, R.color.text_secondary))
+            gravity = Gravity.CENTER
+            setPadding(0, (40 * density).toInt(), 0, (40 * density).toInt())
+            visibility = if (historyList.isEmpty()) View.VISIBLE else View.GONE
+        }
+
+        val btnClose = com.google.android.material.button.MaterialButton(this).apply {
+            text = "Close"
+            textSize = 14f
+            cornerRadius = (10 * density).toInt()
+            setBackgroundColor(ContextCompat.getColor(this@MainActivity, R.color.primary_brand))
+            setOnClickListener { dialog.dismiss() }
+        }
+
+        layout.addView(titleView)
+        layout.addView(subtitleView)
+        if (historyList.isEmpty()) {
+            layout.addView(emptyView)
+        } else {
+            layout.addView(rvHistory)
+        }
+        layout.addView(btnClose)
+        card.addView(layout)
+
+        dialog.setContentView(card)
+        dialog.window?.setBackgroundDrawableResource(android.R.color.transparent)
+        dialog.show()
+    }
+
 }
