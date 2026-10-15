@@ -43,6 +43,17 @@ class GameEngine(private val wordDictionary: Set<String>) {
     }
 
     /**
+     * Restores complete game engine state across activity recreation / orientation changes.
+     */
+    fun restoreState(secret: String, count: Int, gameOver: Boolean, history: List<GuessResult>) {
+        secretWord = secret.uppercase()
+        guessCount = count
+        isGameOver = gameOver
+        guessHistory.clear()
+        guessHistory.addAll(history)
+    }
+
+    /**
      * Specifically sets a secret word (useful for automated testing).
      */
     fun setCustomSecretWord(word: String) {

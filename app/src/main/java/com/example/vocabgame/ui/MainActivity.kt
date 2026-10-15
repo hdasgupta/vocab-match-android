@@ -30,6 +30,18 @@ import java.util.Locale
 
 class MainActivity : AppCompatActivity() {
 
+    companion object {
+        private const val KEY_SECRET_WORD = "key_secret_word"
+        private const val KEY_GUESS_COUNT = "key_guess_count"
+        private const val KEY_IS_GAME_OVER = "key_is_game_over"
+        private const val KEY_IS_HINT_USED = "key_is_hint_used"
+        private const val KEY_HINT_TEXT = "key_hint_text"
+        private const val KEY_IS_HINT_VISIBLE = "key_is_hint_visible"
+        private const val KEY_STATUS_HINT = "key_status_hint"
+        private const val KEY_GUESS_HISTORY = "key_guess_history"
+        private const val KEY_LETTER_STATES = "key_letter_states"
+    }
+
     enum class LetterState {
         UNSELECTED,
         SELECTED,
@@ -80,7 +92,12 @@ class MainActivity : AppCompatActivity() {
         setupLetterTracker()
         setupListeners()
         refreshStats()
-        startNewGame()
+
+        if (savedInstanceState != null) {
+            restoreGameState(savedInstanceState)
+        } else {
+            startNewGame()
+        }
     }
 
     private fun initViews() {
@@ -568,6 +585,106 @@ class MainActivity : AppCompatActivity() {
         } else {
             tvEmptyHistory.visibility = View.GONE
             rvGuesses.visibility = View.VISIBLE
+        }
+    }
+
+
+    override fun onSaveInstanceState(outState: Bundle) {
+        super.onSaveInstanceState(outState)
+        outState.putString(KEY_SECRET_WORD, gameEngine.secretWord)
+        outState.putInt(KEY_GUESS_COUNT, gameEngine.guessCount)
+        outState.putBoolean(KEY_IS_GAME_OVER, gameEngine.isGameOver)
+        outState.putBoolean(KEY_IS_HINT_USED, isHintUsed)
+        outState.putString(KEY_HINT_TEXT, tvHintText.text.toString())
+        outState.putBoolean(KEY_IS_HINT_VISIBLE, cardHintBanner.visibility == View.VISIBLE)
+        outState.putString(KEY_STATUS_HINT, tvStatusHint.text.toString())
+
+        // Save guess history
+        val historyList = ArrayList<String>()
+        for (item in gameEngine.guessHistory) {
+            historyList.add("${item.guessNumber}|${item.guessedWord}|${item.matchingCount}|${item.exactPositions}|${item.isCorrect}")
+        }
+        outState.putStringArrayList(KEY_GUESS_HISTORY, historyList)
+
+        // Save letter tracker states
+        val trackerList = ArrayList<String>()
+        for ((ch, state) in letterStates) {
+            trackerList.add("$ch:${state.name}")
+        }
+        outState.putStringArrayList(KEY_LETTER_STATES, trackerList)
+    }
+
+    private fun restoreGameState(bundle: Bundle) {
+        val secret = bundle.getString(KEY_SECRET_WORD) ?: ""
+        val count = bundle.getInt(KEY_GUESS_COUNT, 0)
+        val isOver = bundle.getBoolean(KEY_IS_GAME_OVER, false)
+
+        // Restore guess history
+        val historyStrings = bundle.getStringArrayList(KEY_GUESS_HISTORY) ?: arrayListOf()
+        val restoredHistory = mutableListOf<com.example.vocabgame.model.GuessResult>()
+        for (raw in historyStrings) {
+            val parts = raw.split("|")
+            if (parts.size == 5) {
+                restoredHistory.add(
+                    com.example.vocabgame.model.GuessResult(
+                        guessNumber = parts[0].toIntOrNull() ?: 1,
+                        guessedWord = parts[1],
+                        matchingCount = parts[2].toIntOrNull() ?: 0,
+                        exactPositions = parts[3].toIntOrNull() ?: 0,
+                        isCorrect = parts[4].toBoolean()
+                    )
+                )
+            }
+        }
+        gameEngine.restoreState(secret, count, isOver, restoredHistory)
+        guessAdapter.submitList(gameEngine.guessHistory.toList())
+        updateHistoryVisibility()
+
+        // Restore hint banner and penalty state
+        isHintUsed = bundle.getBoolean(KEY_IS_HINT_USED, false)
+        val hintText = bundle.getString(KEY_HINT_TEXT) ?: ""
+        val isHintVisible = bundle.getBoolean(KEY_IS_HINT_VISIBLE, false)
+        if (isHintVisible && hintText.isNotEmpty()) {
+            tvHintText.text = hintText
+            cardHintBanner.visibility = View.VISIBLE
+            btnHint.text = getString(R.string.hint_active_badge)
+            btnHint.isEnabled = false
+        } else {
+            cardHintBanner.visibility = View.GONE
+            btnHint.isEnabled = !isOver
+            btnHint.text = getString(R.string.btn_hint)
+        }
+
+        // Restore status text
+        tvStatusHint.text = bundle.getString(KEY_STATUS_HINT) ?: getString(R.string.status_secret_chosen)
+
+        // Restore UI enabled states
+        if (isOver) {
+            etWordInput.isEnabled = false
+            btnSubmitGuess.isEnabled = false
+            btnHint.isEnabled = false
+            btnShowWord.isEnabled = false
+        } else {
+            etWordInput.isEnabled = true
+            btnSubmitGuess.isEnabled = true
+            btnShowWord.isEnabled = true
+        }
+
+        // Restore letter tracker selection / colors
+        val trackerStrings = bundle.getStringArrayList(KEY_LETTER_STATES) ?: arrayListOf()
+        for (entry in trackerStrings) {
+            val parts = entry.split(":")
+            if (parts.size == 2) {
+                val ch = parts[0].firstOrNull() ?: continue
+                val stateName = parts[1]
+                val state = try {
+                    LetterState.valueOf(stateName)
+                } catch (e: Exception) {
+                    LetterState.UNSELECTED
+                }
+                letterStates[ch] = state
+                updateLetterView(ch, state)
+            }
         }
     }
 

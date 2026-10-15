@@ -117,4 +117,24 @@ class GameEngineTest {
             assertTrue("Clue for $w should be descriptive and long", meaning.length > 30)
         }
     }
+
+    @Test
+    fun testGameEngineRestoreState() {
+        engine.setCustomSecretWord("WORD")
+        engine.evaluateGuess("GAME") // guess 1
+
+        val secret = engine.secretWord
+        val count = engine.guessCount
+        val history = engine.guessHistory.toList()
+
+        // Create new engine and restore
+        val newEngine = GameEngine(dictionary)
+        newEngine.restoreState(secret, count, false, history)
+
+        assertEquals("WORD", newEngine.secretWord)
+        assertEquals(1, newEngine.guessCount)
+        assertEquals(1, newEngine.guessHistory.size)
+        assertEquals("GAME", newEngine.guessHistory[0].guessedWord)
+    }
+
 }
