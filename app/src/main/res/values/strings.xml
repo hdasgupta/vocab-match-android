@@ -30,7 +30,7 @@
     <string name="dialog_revealed_points_zero">0.0 pts (Forfeited)</string>
 
     <string name="tracker_box_title">Letter Tracker (A–Z)</string>
-    <string name="tracker_box_subtitle">Green = Selected Candidate | Red = Eliminated</string>
+    <string name="tracker_box_subtitle">Green = Selected | Amber = Maybe | Red = Eliminated</string>
     <string name="btn_clear_tracker">Clear</string>
     
     <string name="section_history_title">Guess History</string>

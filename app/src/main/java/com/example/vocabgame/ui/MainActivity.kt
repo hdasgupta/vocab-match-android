@@ -32,6 +32,7 @@ class MainActivity : AppCompatActivity() {
     enum class LetterState {
         UNSELECTED,
         SELECTED,
+        AMBER,
         ELIMINATED
     }
 
@@ -186,7 +187,8 @@ class MainActivity : AppCompatActivity() {
         val current = letterStates[ch] ?: LetterState.UNSELECTED
         val next = when (current) {
             LetterState.UNSELECTED -> LetterState.SELECTED
-            LetterState.SELECTED -> LetterState.ELIMINATED
+            LetterState.SELECTED -> LetterState.AMBER
+            LetterState.AMBER -> LetterState.ELIMINATED
             LetterState.ELIMINATED -> LetterState.UNSELECTED
         }
         letterStates[ch] = next
@@ -209,6 +211,15 @@ class MainActivity : AppCompatActivity() {
                 targetView.background = createLetterDrawable(
                     ContextCompat.getColor(this, R.color.tracker_selected_green),
                     ContextCompat.getColor(this, R.color.tracker_selected_green_stroke)
+                )
+                targetView.setTextColor(ContextCompat.getColor(this, R.color.white))
+                targetView.paintFlags = targetView.paintFlags and Paint.STRIKE_THRU_TEXT_FLAG.inv()
+            }
+            LetterState.AMBER -> {
+                // Amber state
+                targetView.background = createLetterDrawable(
+                    ContextCompat.getColor(this, R.color.tracker_amber),
+                    ContextCompat.getColor(this, R.color.tracker_amber_stroke)
                 )
                 targetView.setTextColor(ContextCompat.getColor(this, R.color.white))
                 targetView.paintFlags = targetView.paintFlags and Paint.STRIKE_THRU_TEXT_FLAG.inv()

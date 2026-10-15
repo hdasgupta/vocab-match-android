@@ -17,6 +17,8 @@
     
     <color name="tracker_selected_green">#10B981</color>
     <color name="tracker_selected_green_stroke">#059669</color>
+    <color name="tracker_amber">#F59E0B</color>
+    <color name="tracker_amber_stroke">#D97706</color>
     <color name="tracker_eliminated_red">#EF4444</color>
     <color name="tracker_eliminated_red_stroke">#DC2626</color>
     
