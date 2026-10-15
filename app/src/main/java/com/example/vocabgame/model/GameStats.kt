@@ -16,3 +16,15 @@ data class GameStats(
     val averageGuesses: Double,
     val averagePoints: Double
 )
+
+
+/**
+ * Historical game record for a completed round of "Guess Word".
+ */
+data class GuessWordRecord(
+    val id: Long,
+    val secretWord: String,
+    val guessCount: Int,
+    val points: Double,
+    val timestamp: Long
+)

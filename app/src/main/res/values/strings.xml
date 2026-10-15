@@ -132,4 +132,18 @@
     <string name="crossword_history_empty">No completed crossword games in the database yet.</string>
     <string name="confirm_reset_crossword_stats_title">Reset Crossword Stats?</string>
     <string name="confirm_reset_crossword_stats_msg">This will clear all historical crossword logs and reset your stats to 0.</string>
+
+    <!-- Game History Strings -->
+    <string name="guess_dialog_history_title">Guess Word History</string>
+    <string name="guess_history_empty">No completed Guess Word games recorded in the database yet.</string>
+    <string name="chain_dialog_history_title">Word Chain History</string>
+    <string name="chain_history_empty">No completed Word Chain games recorded in the database yet.</string>
+    <string name="all_games_dialog_history_title">All Games History</string>
+    <string name="all_games_history_empty">No completed games recorded in the database yet.</string>
+    <string name="nav_all_history">All Games History</string>
+    <string name="filter_all">All Games</string>
+    <string name="filter_guess_word">Guess Word</string>
+    <string name="filter_change_letter">Change a Letter</string>
+    <string name="filter_rearrange">Rearrange</string>
+    <string name="filter_crossword">Crossword</string>
 </resources>

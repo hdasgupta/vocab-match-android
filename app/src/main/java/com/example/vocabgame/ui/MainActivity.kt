@@ -32,6 +32,13 @@ import com.example.vocabgame.logic.RearrangeSubmitResult
 import com.example.vocabgame.model.CrosswordCellState
 import com.example.vocabgame.model.CrosswordRecord
 import com.example.vocabgame.ui.CrosswordHistoryAdapter
+import com.example.vocabgame.model.GuessWordRecord
+import com.example.vocabgame.model.ChainGameRecord
+import com.example.vocabgame.model.UnifiedGameHistoryRecord
+import com.example.vocabgame.model.GameType
+import com.example.vocabgame.ui.GuessWordHistoryAdapter
+import com.example.vocabgame.ui.ChainGameHistoryAdapter
+import com.example.vocabgame.ui.UnifiedGameHistoryAdapter
 import android.view.KeyEvent
 import com.example.vocabgame.model.RearrangeGameStats
 import com.example.vocabgame.model.RearrangeRecord
@@ -181,6 +188,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var btnSubmitGuess: Button
     private lateinit var btnNewGame: Button
     private lateinit var btnResetStats: Button
+    private lateinit var btnViewGuessHistory: Button
     private lateinit var rvGuesses: RecyclerView
     private lateinit var tvEmptyHistory: TextView
     private lateinit var tvStatusHint: TextView
@@ -204,6 +212,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var tvChainTotalPoints: TextView
     private lateinit var tvChainTotalGames: TextView
     private lateinit var btnResetChainStats: Button
+    private lateinit var btnViewChainHistory: Button
 
     private lateinit var tvChainCurrentWord: TextView
     private lateinit var tvChainCurrentMeaning: TextView
@@ -330,6 +339,7 @@ class MainActivity : AppCompatActivity() {
         btnSubmitGuess = findViewById(R.id.btnSubmitGuess)
         btnNewGame = findViewById(R.id.btnNewGame)
         btnResetStats = findViewById(R.id.btnResetStats)
+        btnViewGuessHistory = findViewById(R.id.btnViewGuessHistory)
         rvGuesses = findViewById(R.id.rvGuesses)
         tvEmptyHistory = findViewById(R.id.tvEmptyHistory)
         tvStatusHint = findViewById(R.id.tvStatusHint)
@@ -356,6 +366,7 @@ class MainActivity : AppCompatActivity() {
         tvChainTotalPoints = findViewById(R.id.tvChainTotalPoints)
         tvChainTotalGames = findViewById(R.id.tvChainTotalGames)
         btnResetChainStats = findViewById(R.id.btnResetChainStats)
+        btnViewChainHistory = findViewById(R.id.btnViewChainHistory)
 
         tvChainCurrentWord = findViewById(R.id.tvChainCurrentWord)
         tvChainCurrentMeaning = findViewById(R.id.tvChainCurrentMeaning)
@@ -404,6 +415,11 @@ class MainActivity : AppCompatActivity() {
                 R.id.nav_crossword -> {
                     switchToGame(GAME_CROSSWORD)
                     drawerLayout.closeDrawer(GravityCompat.START)
+                    true
+                }
+                R.id.nav_all_history -> {
+                    drawerLayout.closeDrawer(GravityCompat.START)
+                    showAllGamesHistoryDialog()
                     true
                 }
                 else -> false
@@ -624,6 +640,7 @@ class MainActivity : AppCompatActivity() {
                     .show()
             } else startNewGame()
         }
+        btnViewGuessHistory.setOnClickListener { showGuessWordHistoryDialog() }
         btnResetStats.setOnClickListener {
             AlertDialog.Builder(this)
                 .setTitle(R.string.reset_stats_title)
@@ -647,6 +664,7 @@ class MainActivity : AppCompatActivity() {
         }
         btnChainSurrender.setOnClickListener { handleUserChainSurrender() }
         btnNewChainGame.setOnClickListener { startNewChainGame() }
+        btnViewChainHistory.setOnClickListener { showChainHistoryDialog() }
         btnResetChainStats.setOnClickListener {
             AlertDialog.Builder(this)
                 .setTitle(R.string.confirm_reset_chain_stats_title)
@@ -2481,4 +2499,585 @@ class MainActivity : AppCompatActivity() {
         dialog.window?.setBackgroundDrawableResource(android.R.color.transparent)
         dialog.show()
     }
+
+    // ==========================================
+    // Guess Word & Chain Game History Dialogs
+    // ==========================================
+
+    private fun showGuessWordHistoryDialog() {
+        val dialog = Dialog(this)
+        val density = resources.displayMetrics.density
+        val padding = (20 * density).toInt()
+
+        val card = MaterialCardView(this).apply {
+            radius = 18f * density
+            cardElevation = 6f * density
+            setStrokeColor(ContextCompat.getColor(this@MainActivity, R.color.card_stroke))
+            strokeWidth = (1.5f * density).toInt()
+            setCardBackgroundColor(ContextCompat.getColor(this@MainActivity, R.color.card_background))
+        }
+
+        val layout = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(padding, padding, padding, padding)
+        }
+
+        val titleView = TextView(this).apply {
+            text = getString(R.string.guess_dialog_history_title)
+            textSize = 18f
+            typeface = Typeface.DEFAULT_BOLD
+            setTextColor(ContextCompat.getColor(this@MainActivity, R.color.text_primary))
+        }
+
+        val stats = dbHelper.getAggregatedStats()
+        val subtitleView = TextView(this).apply {
+            text = "Lifetime Games Won: ${stats.totalGames} • Avg Guesses: ${String.format(Locale.US, "%.1f", stats.averageGuesses)} • Total Pts: ${String.format(Locale.US, "%.1f", stats.aggregatedPoints)}"
+            textSize = 12f
+            setTextColor(ContextCompat.getColor(this@MainActivity, R.color.text_secondary))
+            setPadding(0, (2 * density).toInt(), 0, (12 * density).toInt())
+        }
+
+        val historyList = dbHelper.getGuessWordHistory(50)
+        val rvHistory = RecyclerView(this).apply {
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                (320 * density).toInt()
+            )
+            layoutManager = LinearLayoutManager(this@MainActivity)
+        }
+
+        val adapter = GuessWordHistoryAdapter { record ->
+            showGuessWordHistoryDetailsDialog(record)
+        }
+        rvHistory.adapter = adapter
+        adapter.submitList(historyList)
+
+        val emptyView = TextView(this).apply {
+            text = getString(R.string.guess_history_empty)
+            textSize = 13f
+            setTextColor(ContextCompat.getColor(this@MainActivity, R.color.text_secondary))
+            gravity = Gravity.CENTER
+            setPadding(0, (40 * density).toInt(), 0, (40 * density).toInt())
+            visibility = if (historyList.isEmpty()) View.VISIBLE else View.GONE
+        }
+
+        val btnClose = com.google.android.material.button.MaterialButton(this).apply {
+            text = "Close"
+            textSize = 14f
+            cornerRadius = (10 * density).toInt()
+            setBackgroundColor(ContextCompat.getColor(this@MainActivity, R.color.primary_brand))
+            setOnClickListener { dialog.dismiss() }
+        }
+
+        layout.addView(titleView)
+        layout.addView(subtitleView)
+        if (historyList.isEmpty()) {
+            layout.addView(emptyView)
+        } else {
+            layout.addView(rvHistory)
+        }
+        layout.addView(btnClose)
+        card.addView(layout)
+
+        dialog.setContentView(card)
+        dialog.window?.setBackgroundDrawableResource(android.R.color.transparent)
+        dialog.show()
+    }
+
+    private fun showGuessWordHistoryDetailsDialog(record: GuessWordRecord) {
+        val dialog = Dialog(this)
+        val density = resources.displayMetrics.density
+        val padding = (20 * density).toInt()
+
+        val card = MaterialCardView(this).apply {
+            radius = 18f * density
+            cardElevation = 6f * density
+            setStrokeColor(ContextCompat.getColor(this@MainActivity, R.color.card_stroke))
+            strokeWidth = (1.5f * density).toInt()
+            setCardBackgroundColor(ContextCompat.getColor(this@MainActivity, R.color.card_background))
+        }
+
+        val layout = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(padding, padding, padding, padding)
+        }
+
+        val titleView = TextView(this).apply {
+            text = "Guess Word Record"
+            textSize = 18f
+            typeface = Typeface.DEFAULT_BOLD
+            setTextColor(ContextCompat.getColor(this@MainActivity, R.color.text_primary))
+        }
+
+        val subtitleView = TextView(this).apply {
+            val dateStr = java.text.SimpleDateFormat("MMM dd, yyyy • h:mm a", Locale.US).format(java.util.Date(record.timestamp))
+            text = "Played on $dateStr"
+            textSize = 12f
+            setTextColor(ContextCompat.getColor(this@MainActivity, R.color.text_secondary))
+            setPadding(0, (2 * density).toInt(), 0, (10 * density).toInt())
+        }
+
+        val wordCard = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding((12 * density).toInt(), (10 * density).toInt(), (12 * density).toInt(), (10 * density).toInt())
+            setBackgroundResource(R.drawable.bg_stat_cell)
+            val lp = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+            )
+            lp.bottomMargin = (12 * density).toInt()
+            layoutParams = lp
+        }
+
+        val tvWord = TextView(this).apply {
+            text = record.secretWord
+            textSize = 22f
+            typeface = Typeface.MONOSPACE
+            setTypeface(typeface, Typeface.BOLD)
+            setTextColor(ContextCompat.getColor(this@MainActivity, R.color.primary_brand))
+        }
+        val tvDef = TextView(this).apply {
+            text = WordMeanings.getMeaning(record.secretWord)
+            textSize = 13f
+            setTextColor(ContextCompat.getColor(this@MainActivity, R.color.text_secondary))
+            setPadding(0, (4 * density).toInt(), 0, 0)
+        }
+        wordCard.addView(tvWord)
+        wordCard.addView(tvDef)
+
+        val statsLayout = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            val lp = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+            )
+            lp.bottomMargin = (14 * density).toInt()
+            layoutParams = lp
+        }
+
+        val guessesCell = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding((10 * density).toInt(), (8 * density).toInt(), (10 * density).toInt(), (8 * density).toInt())
+            setBackgroundResource(R.drawable.bg_stat_cell)
+            layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f).apply {
+                marginEnd = (6 * density).toInt()
+            }
+        }
+        val tvGuessesLbl = TextView(this).apply {
+            text = "Guesses Taken"
+            textSize = 11f
+            setTextColor(ContextCompat.getColor(this@MainActivity, R.color.text_secondary))
+        }
+        val tvGuessesVal = TextView(this).apply {
+            text = "${record.guessCount}"
+            textSize = 18f
+            typeface = Typeface.DEFAULT_BOLD
+            setTextColor(ContextCompat.getColor(this@MainActivity, R.color.text_primary))
+        }
+        guessesCell.addView(tvGuessesLbl)
+        guessesCell.addView(tvGuessesVal)
+
+        val pointsCell = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding((10 * density).toInt(), (8 * density).toInt(), (10 * density).toInt(), (8 * density).toInt())
+            setBackgroundResource(R.drawable.bg_stat_cell)
+            layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f).apply {
+                marginStart = (6 * density).toInt()
+            }
+        }
+        val tvPointsLbl = TextView(this).apply {
+            text = "Points Earned"
+            textSize = 11f
+            setTextColor(ContextCompat.getColor(this@MainActivity, R.color.text_secondary))
+        }
+        val tvPointsVal = TextView(this).apply {
+            text = "+${String.format(Locale.US, "%.1f", record.points)} pts"
+            textSize = 18f
+            typeface = Typeface.DEFAULT_BOLD
+            setTextColor(ContextCompat.getColor(this@MainActivity, R.color.success_green))
+        }
+        pointsCell.addView(tvPointsLbl)
+        pointsCell.addView(tvPointsVal)
+
+        statsLayout.addView(guessesCell)
+        statsLayout.addView(pointsCell)
+
+        val btnBack = com.google.android.material.button.MaterialButton(this).apply {
+            text = "Back"
+            textSize = 14f
+            cornerRadius = (10 * density).toInt()
+            setBackgroundColor(ContextCompat.getColor(this@MainActivity, R.color.primary_brand))
+            setOnClickListener { dialog.dismiss() }
+        }
+
+        layout.addView(titleView)
+        layout.addView(subtitleView)
+        layout.addView(wordCard)
+        layout.addView(statsLayout)
+        layout.addView(btnBack)
+        card.addView(layout)
+
+        dialog.setContentView(card)
+        dialog.window?.setBackgroundDrawableResource(android.R.color.transparent)
+        dialog.show()
+    }
+
+    private fun showChainHistoryDialog() {
+        val dialog = Dialog(this)
+        val density = resources.displayMetrics.density
+        val padding = (20 * density).toInt()
+
+        val card = MaterialCardView(this).apply {
+            radius = 18f * density
+            cardElevation = 6f * density
+            setStrokeColor(ContextCompat.getColor(this@MainActivity, R.color.card_stroke))
+            strokeWidth = (1.5f * density).toInt()
+            setCardBackgroundColor(ContextCompat.getColor(this@MainActivity, R.color.card_background))
+        }
+
+        val layout = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(padding, padding, padding, padding)
+        }
+
+        val titleView = TextView(this).apply {
+            text = getString(R.string.chain_dialog_history_title)
+            textSize = 18f
+            typeface = Typeface.DEFAULT_BOLD
+            setTextColor(ContextCompat.getColor(this@MainActivity, R.color.text_primary))
+        }
+
+        val stats = dbHelper.getChainAggregatedStats()
+        val subtitleView = TextView(this).apply {
+            text = "Total Chains: ${stats.totalGames} • Avg Chain Length: ${String.format(Locale.US, "%.1f", stats.averageChainCount)} • Earned Points: ${stats.aggregatedPoints}"
+            textSize = 12f
+            setTextColor(ContextCompat.getColor(this@MainActivity, R.color.text_secondary))
+            setPadding(0, (2 * density).toInt(), 0, (12 * density).toInt())
+        }
+
+        val historyList = dbHelper.getChainHistory(50)
+        val rvHistory = RecyclerView(this).apply {
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                (320 * density).toInt()
+            )
+            layoutManager = LinearLayoutManager(this@MainActivity)
+        }
+
+        val adapter = ChainGameHistoryAdapter { record ->
+            showChainHistoryDetailsDialog(record)
+        }
+        rvHistory.adapter = adapter
+        adapter.submitList(historyList)
+
+        val emptyView = TextView(this).apply {
+            text = getString(R.string.chain_history_empty)
+            textSize = 13f
+            setTextColor(ContextCompat.getColor(this@MainActivity, R.color.text_secondary))
+            gravity = Gravity.CENTER
+            setPadding(0, (40 * density).toInt(), 0, (40 * density).toInt())
+            visibility = if (historyList.isEmpty()) View.VISIBLE else View.GONE
+        }
+
+        val btnClose = com.google.android.material.button.MaterialButton(this).apply {
+            text = "Close"
+            textSize = 14f
+            cornerRadius = (10 * density).toInt()
+            setBackgroundColor(ContextCompat.getColor(this@MainActivity, R.color.primary_brand))
+            setOnClickListener { dialog.dismiss() }
+        }
+
+        layout.addView(titleView)
+        layout.addView(subtitleView)
+        if (historyList.isEmpty()) {
+            layout.addView(emptyView)
+        } else {
+            layout.addView(rvHistory)
+        }
+        layout.addView(btnClose)
+        card.addView(layout)
+
+        dialog.setContentView(card)
+        dialog.window?.setBackgroundDrawableResource(android.R.color.transparent)
+        dialog.show()
+    }
+
+    private fun showChainHistoryDetailsDialog(record: ChainGameRecord) {
+        val dialog = Dialog(this)
+        val density = resources.displayMetrics.density
+        val padding = (20 * density).toInt()
+
+        val card = MaterialCardView(this).apply {
+            radius = 18f * density
+            cardElevation = 6f * density
+            setStrokeColor(ContextCompat.getColor(this@MainActivity, R.color.card_stroke))
+            strokeWidth = (1.5f * density).toInt()
+            setCardBackgroundColor(ContextCompat.getColor(this@MainActivity, R.color.card_background))
+        }
+
+        val layout = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(padding, padding, padding, padding)
+        }
+
+        val isUserWin = record.winner.equals("USER", ignoreCase = true)
+        val titleView = TextView(this).apply {
+            text = if (isUserWin) "Player Victory 🏆" else "Game Over (Surrendered)"
+            textSize = 18f
+            typeface = Typeface.DEFAULT_BOLD
+            setTextColor(ContextCompat.getColor(this@MainActivity, if (isUserWin) R.color.primary_brand else R.color.tracker_amber))
+        }
+
+        val dateStr = java.text.SimpleDateFormat("MMM dd, yyyy • h:mm a", Locale.US).format(java.util.Date(record.timestamp))
+        val subtitleView = TextView(this).apply {
+            text = "Word Chain Game played on $dateStr"
+            textSize = 12f
+            setTextColor(ContextCompat.getColor(this@MainActivity, R.color.text_secondary))
+            setPadding(0, (2 * density).toInt(), 0, (12 * density).toInt())
+        }
+
+        val statsLayout = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            val lp = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+            )
+            lp.bottomMargin = (12 * density).toInt()
+            layoutParams = lp
+        }
+
+        val chainCell = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding((10 * density).toInt(), (8 * density).toInt(), (10 * density).toInt(), (8 * density).toInt())
+            setBackgroundResource(R.drawable.bg_stat_cell)
+            layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f).apply {
+                marginEnd = (4 * density).toInt()
+            }
+        }
+        val tvChainLbl = TextView(this).apply {
+            text = "Total Chain"
+            textSize = 11f
+            setTextColor(ContextCompat.getColor(this@MainActivity, R.color.text_secondary))
+        }
+        val tvChainVal = TextView(this).apply {
+            text = "${record.chainLength} words"
+            textSize = 16f
+            typeface = Typeface.DEFAULT_BOLD
+            setTextColor(ContextCompat.getColor(this@MainActivity, R.color.text_primary))
+        }
+        chainCell.addView(tvChainLbl)
+        chainCell.addView(tvChainVal)
+
+        val wordsCell = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding((10 * density).toInt(), (8 * density).toInt(), (10 * density).toInt(), (8 * density).toInt())
+            setBackgroundResource(R.drawable.bg_stat_cell)
+            layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f).apply {
+                marginEnd = (4 * density).toInt()
+                marginStart = (4 * density).toInt()
+            }
+        }
+        val tvWordsLbl = TextView(this).apply {
+            text = "User Played"
+            textSize = 11f
+            setTextColor(ContextCompat.getColor(this@MainActivity, R.color.text_secondary))
+        }
+        val tvWordsVal = TextView(this).apply {
+            text = "${record.userWords} words"
+            textSize = 16f
+            typeface = Typeface.DEFAULT_BOLD
+            setTextColor(ContextCompat.getColor(this@MainActivity, R.color.text_primary))
+        }
+        wordsCell.addView(tvWordsLbl)
+        wordsCell.addView(tvWordsVal)
+
+        val pointsCell = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding((10 * density).toInt(), (8 * density).toInt(), (10 * density).toInt(), (8 * density).toInt())
+            setBackgroundResource(R.drawable.bg_stat_cell)
+            layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f).apply {
+                marginStart = (4 * density).toInt()
+            }
+        }
+        val tvPointsLbl = TextView(this).apply {
+            text = "Points Earned"
+            textSize = 11f
+            setTextColor(ContextCompat.getColor(this@MainActivity, R.color.text_secondary))
+        }
+        val tvPointsVal = TextView(this).apply {
+            text = "+${record.points} pts"
+            textSize = 16f
+            typeface = Typeface.DEFAULT_BOLD
+            setTextColor(ContextCompat.getColor(this@MainActivity, R.color.success_green))
+        }
+        pointsCell.addView(tvPointsLbl)
+        pointsCell.addView(tvPointsVal)
+
+        statsLayout.addView(chainCell)
+        statsLayout.addView(wordsCell)
+        statsLayout.addView(pointsCell)
+
+        val btnBack = com.google.android.material.button.MaterialButton(this).apply {
+            text = "Back"
+            textSize = 14f
+            cornerRadius = (10 * density).toInt()
+            setBackgroundColor(ContextCompat.getColor(this@MainActivity, R.color.primary_brand))
+            setOnClickListener { dialog.dismiss() }
+        }
+
+        layout.addView(titleView)
+        layout.addView(subtitleView)
+        layout.addView(statsLayout)
+        layout.addView(btnBack)
+        card.addView(layout)
+
+        dialog.setContentView(card)
+        dialog.window?.setBackgroundDrawableResource(android.R.color.transparent)
+        dialog.show()
+    }
+
+    private fun showAllGamesHistoryDialog() {
+        val dialog = Dialog(this)
+        val density = resources.displayMetrics.density
+        val padding = (16 * density).toInt()
+
+        val card = MaterialCardView(this).apply {
+            radius = 18f * density
+            cardElevation = 6f * density
+            setStrokeColor(ContextCompat.getColor(this@MainActivity, R.color.card_stroke))
+            strokeWidth = (1.5f * density).toInt()
+            setCardBackgroundColor(ContextCompat.getColor(this@MainActivity, R.color.card_background))
+        }
+
+        val layout = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(padding, padding, padding, padding)
+        }
+
+        val titleView = TextView(this).apply {
+            text = getString(R.string.all_games_dialog_history_title)
+            textSize = 18f
+            typeface = Typeface.DEFAULT_BOLD
+            setTextColor(ContextCompat.getColor(this@MainActivity, R.color.text_primary))
+        }
+
+        val subtitleView = TextView(this).apply {
+            text = "Chronological game records across all 4 modes (Tap to inspect details)"
+            textSize = 12f
+            setTextColor(ContextCompat.getColor(this@MainActivity, R.color.text_secondary))
+            setPadding(0, (2 * density).toInt(), 0, (8 * density).toInt())
+        }
+
+        val filterScrollView = android.widget.HorizontalScrollView(this).apply {
+            isHorizontalScrollBarEnabled = false
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+            ).apply {
+                bottomMargin = (8 * density).toInt()
+            }
+        }
+        val filterLayout = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+        }
+
+        val allHistoryList = dbHelper.getAllGamesHistory(100)
+        val rvHistory = RecyclerView(this).apply {
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                (320 * density).toInt()
+            )
+            layoutManager = LinearLayoutManager(this@MainActivity)
+        }
+
+        val adapter = UnifiedGameHistoryAdapter { unifiedItem ->
+            when (unifiedItem.rawObject) {
+                is GuessWordRecord -> showGuessWordHistoryDetailsDialog(unifiedItem.rawObject)
+                is ChainGameRecord -> showChainHistoryDetailsDialog(unifiedItem.rawObject)
+                is RearrangeRecord -> showRearrangeHistoryDetailsDialog(unifiedItem.rawObject)
+                is CrosswordRecord -> showCrosswordHistoryDetailsDialog(unifiedItem.rawObject)
+            }
+        }
+        rvHistory.adapter = adapter
+        adapter.submitList(allHistoryList)
+
+        val emptyView = TextView(this).apply {
+            text = getString(R.string.all_games_history_empty)
+            textSize = 13f
+            setTextColor(ContextCompat.getColor(this@MainActivity, R.color.text_secondary))
+            gravity = Gravity.CENTER
+            setPadding(0, (40 * density).toInt(), 0, (40 * density).toInt())
+            visibility = if (allHistoryList.isEmpty()) View.VISIBLE else View.GONE
+        }
+
+        val filters = listOf<Pair<String, GameType?>>(
+            Pair("All", null),
+            Pair("Guess Word", GameType.GUESS_WORD),
+            Pair("Chain", GameType.CHANGE_LETTER),
+            Pair("Rearrange", GameType.REARRANGE),
+            Pair("Crossword", GameType.CROSSWORD)
+        )
+
+        val filterButtons = mutableListOf<com.google.android.material.button.MaterialButton>()
+        for (f in filters) {
+            val btn = com.google.android.material.button.MaterialButton(this).apply {
+                text = f.first
+                textSize = 11f
+                cornerRadius = (8 * density).toInt()
+                val lp = LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.WRAP_CONTENT,
+                    (34 * density).toInt()
+                ).apply {
+                    marginEnd = (6 * density).toInt()
+                }
+                layoutParams = lp
+                setPadding((10 * density).toInt(), 0, (10 * density).toInt(), 0)
+                if (f.second == null) {
+                    setBackgroundColor(ContextCompat.getColor(this@MainActivity, R.color.primary_brand))
+                    setTextColor(ContextCompat.getColor(this@MainActivity, R.color.white))
+                } else {
+                    setBackgroundColor(ContextCompat.getColor(this@MainActivity, R.color.screen_background))
+                    setTextColor(ContextCompat.getColor(this@MainActivity, R.color.text_primary))
+                }
+                setOnClickListener {
+                    adapter.filterByGameType(f.second)
+                    for (b in filterButtons) {
+                        b.setBackgroundColor(ContextCompat.getColor(this@MainActivity, R.color.screen_background))
+                        b.setTextColor(ContextCompat.getColor(this@MainActivity, R.color.text_primary))
+                    }
+                    setBackgroundColor(ContextCompat.getColor(this@MainActivity, R.color.primary_brand))
+                    setTextColor(ContextCompat.getColor(this@MainActivity, R.color.white))
+                    emptyView.visibility = if (adapter.itemCount == 0) View.VISIBLE else View.GONE
+                }
+            }
+            filterButtons.add(btn)
+            filterLayout.addView(btn)
+        }
+        filterScrollView.addView(filterLayout)
+
+        val btnClose = com.google.android.material.button.MaterialButton(this).apply {
+            text = "Close"
+            textSize = 14f
+            cornerRadius = (10 * density).toInt()
+            setBackgroundColor(ContextCompat.getColor(this@MainActivity, R.color.primary_brand))
+            setOnClickListener { dialog.dismiss() }
+        }
+
+        layout.addView(titleView)
+        layout.addView(subtitleView)
+        layout.addView(filterScrollView)
+        if (allHistoryList.isEmpty()) {
+            layout.addView(emptyView)
+        } else {
+            layout.addView(rvHistory)
+            layout.addView(emptyView)
+        }
+        layout.addView(btnClose)
+        card.addView(layout)
+
+        dialog.setContentView(card)
+        dialog.window?.setBackgroundDrawableResource(android.R.color.transparent)
+        dialog.show()
+    }
+
 }

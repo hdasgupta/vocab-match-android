@@ -1,36 +1,49 @@
-# VocabMatch - Android 4-Letter Vocabulary Game
+# VocabMatch - Android 4-Letter Vocabulary Game Suite
 
 **VocabMatch** is a native Android deduction vocabulary game built using modern Android architecture, Material 3 design, Kotlin, and Android's **built-in SQLite database engine**.
 
 ---
 
-## 🎮 How the Game Works
+## 🎮 The 4 Game Modes & History Logs
 
-1. **Secret Word Selection**:
-   - The computer randomly chooses a meaningful 4-letter English word from an internal curated vocabulary dictionary (`assets/words.txt`).
-   - The secret word remains hidden from the player.
+The application features four distinct 4-letter vocabulary game modes, each with persistent SQLite database game logs and detailed historical inspect dialogs:
 
-2. **Deduction Gameplay**:
-   - The user enters a meaningful 4-letter English word.
-   - The app verifies that the word is 4 letters and exists in the dictionary.
-   - The computer reveals **how many letters match** with the hidden secret word (using proper multiset frequency matching to handle duplicate letters accurately), along with positional match indicators.
-   - The user continues making guesses until the exact word is discovered.
+### 1. Guess Word (Deduction Mode)
+- **Gameplay**: Player deduces a secret 4-letter word. Each guess reports matching letter counts and exact in-place matches.
+- **Scoring**: $\text{Points Earned} = \frac{100}{\text{Number of Guesses}}$ (e.g. 1 guess: 100 pts, 2: 50 pts, 4: 25 pts, 5: 20 pts). Clue hints halve the points earned.
+- **History Tracking**:
+  - Persisted in SQLite `game_records` table (`secret_word`, `guess_count`, `points`, `timestamp`).
+  - Dedicated **"History Log"** button in performance card (`btnViewGuessHistory`).
+  - Tap any past game to open the **Guess Word Record Dialog** displaying secret word, dictionary definition, guesses taken, and points earned.
 
-3. **Scoring Rule**:
-   - $\\text{Points Earned} = \\frac{100}{\\text{Number of Guesses}}$
-   - Example:
-     - 1 guess: **100.0 pts**
-     - 2 guesses: **50.0 pts**
-     - 4 guesses: **25.0 pts**
-     - 5 guesses: **20.0 pts**
+### 2. Change a Letter (Word Chain Mode)
+- **Gameplay**: Turn-based word chain alternating between player and computer. Each move changes exactly 1 letter to form a new valid dictionary word.
+- **Scoring**: +2 points per valid word played. Surrendering finalizes the chain score.
+- **History Tracking**:
+  - Persisted in SQLite `chain_game_records` table (`chain_length`, `user_words`, `points`, `winner`, `timestamp`).
+  - Dedicated **"History Log"** button in stats card (`btnViewChainHistory`).
+  - Tap any past game to inspect total chain length, user words submitted, winner outcome (Player Victory 🏆 vs Computer Surrender), and points earned.
 
-4. **Built-in Database & Statistics**:
-   - Powered by Android's built-in `android.database.sqlite.SQLiteOpenHelper` (zero third-party ORM overhead).
-   - Stores each game record and aggregates:
-     - **Aggregated Points**: Total accumulated points across all games.
-     - **Average Guesses**: Calculated as $\\frac{\\sum \\text{Total Guesses}}{\\text{Total Games Played}}$.
-     - **Games Won**: Total completed games.
-     - **Average Points per Game**.
+### 3. Rearrange (Anagram Discovery Mode)
+- **Gameplay**: Unscramble a 4-letter base word into all possible valid anagrams. Progressive points: 1st word = 25 pts, 2nd = 50 pts, 3rd = 100 pts.
+- **History Tracking**:
+  - Persisted in SQLite `rearrange_game_records` table (`base_word`, `words_found_count`, `words_found_csv`, `words_missed_csv`, `possible_words_count`, `points`, `timestamp`).
+  - Dedicated **"History Log"** button in stats card (`btnViewRearrangeHistory`).
+  - Tap any past record to inspect found vs missed words with full definitions.
+
+### 4. Crossword (Interconnected 4x4 Puzzle)
+- **Gameplay**: Solve 4 interconnected 4-letter words (2 Across, 2 Down) with minimal clues and letter reveals.
+- **History Tracking**:
+  - Persisted in SQLite `crossword_game_records` table (`across1`, `across2`, `down1`, `down2`, `correct_guesses`, `hints_taken`, `points`, `is_completed`, `timestamp`).
+  - Dedicated **"Stats / History"** button (`btnCrosswordHistory`).
+  - Tap any past record to view all 4 solution words, definitions, and hint penalties.
+
+### 🌐 All Games History (Unified History Hub)
+- Accessible from the Navigation Drawer under **"All Games History"** (`nav_all_history`).
+- Aggregates and chronologically sorts game records across all four game modes.
+- Filter chips allow filtering between: `All Games`, `Guess Word`, `Change a Letter`, `Rearrange`, and `Crossword`.
+- Color-coded badges instantly identify the game type (Blue for Guess Word, Purple for Word Chain, Green for Rearrange, Amber for Crossword).
+- Tapping any record opens its detailed breakdown dialog.
 
 ---
 
@@ -42,7 +55,7 @@ The repository includes a ready-to-use GitHub Actions workflow located at `.gith
 - **Trigger**: Automatically executes on every `push` or `pull_request` to `main` and `master` branches, as well as manual triggers (`workflow_dispatch`).
 - **Build Environment**: Ubuntu latest with Eclipse Temurin JDK 17.
 - **Gradle Caching**: Uses Gradle build caching to speed up subsequent builds.
-- **APK Generation**: Executes `./gradlew assembleDebug --stacktrace`.
+- **APK Generation**: Executes `gradle assembleDebug --stacktrace`.
 - **Artifact Upload**: Automatically uploads the generated `app-debug.apk` as a downloadable GitHub Actions artifact retained for 14 days.
 
 ---
@@ -64,59 +77,52 @@ VocabMatchApp/
 │       │   │   └── words.txt          <- Curated 4-letter vocabulary dictionary
 │       │   ├── java/com/example/vocabgame/
 │       │   │   ├── data/
-│       │   │   │   └── DatabaseHelper.kt  <- Built-in SQLiteOpenHelper implementation
+│       │   │   │   ├── DatabaseHelper.kt  <- SQLite helper with history queries for all 4 games
+│       │   │   │   ├── WordDictionary.kt  <- 4-letter dictionary loader
+│       │   │   │   └── WordMeanings.kt    <- Word definitions and clues
 │       │   │   ├── logic/
-│       │   │   │   └── GameEngine.kt      <- Word matching & 100/N scoring logic
+│       │   │   │   ├── GameEngine.kt          <- Guess Word matching & 100/N scoring
+│       │   │   │   ├── ChangeLetterEngine.kt  <- Word chain rules & AI opponent
+│       │   │   │   ├── RearrangeEngine.kt     <- Anagram generation & validation
+│       │   │   │   └── CrosswordEngine.kt     <- Interlocking crossword generator
 │       │   │   ├── model/
-│       │   │   │   ├── GameStats.kt       <- Aggregated database statistics
-│       │   │   │   └── GuessResult.kt     <- Individual guess model
+│       │   │   │   ├── GameStats.kt
+│       │   │   │   ├── GuessWordRecord.kt         <- Guess Word history record
+│       │   │   │   ├── ChainGameRecord.kt         <- Word chain history record
+│       │   │   │   ├── RearrangeRecord.kt         <- Rearrange history record
+│       │   │   │   ├── CrosswordModels.kt         <- Crossword models & history record
+│       │   │   │   └── UnifiedGameHistoryRecord.kt<- Unified history model across all modes
 │       │   │   └── ui/
-│       │   │       ├── MainActivity.kt    <- Game screen controller & dialogs
-│       │   │       └── GuessAdapter.kt    <- RecyclerView guess history adapter
+│       │   │       ├── MainActivity.kt            <- Main screen, navigation & history dialogs
+│       │   │       ├── GuessWordHistoryAdapter.kt <- Guess Word history RecyclerView adapter
+│       │   │       ├── ChainGameHistoryAdapter.kt <- Word Chain history RecyclerView adapter
+│       │   │       ├── RearrangeHistoryAdapter.kt <- Rearrange history RecyclerView adapter
+│       │   │       ├── CrosswordHistoryAdapter.kt <- Crossword history RecyclerView adapter
+│       │   │       └── UnifiedGameHistoryAdapter.kt<- Unified All-Games history adapter
 │       │   └── res/
 │       │       ├── layout/
-│       │       │   ├── activity_main.xml  <- Material 3 main dashboard
-│       │       │   ├── item_guess.xml     <- Guess card layout
-│       │       │   └── dialog_victory.xml <- Victory stats dialog
+│       │       │   ├── activity_main.xml          <- Material 3 main dashboard with history buttons
+│       │       │   ├── item_guess_word_history.xml<- Guess Word history card layout
+│       │       │   ├── item_chain_game_history.xml<- Word Chain history card layout
+│       │       │   ├── item_rearrange_history.xml <- Rearrange history card layout
+│       │       │   ├── item_crossword_history.xml <- Crossword history card layout
+│       │       │   └── item_unified_game_history.xml<- Unified history card layout
+│       │       ├── menu/
+│       │       │   └── drawer_menu.xml            <- Navigation drawer with All Games History
 │       │       └── values/
 │       │           ├── colors.xml
 │       │           ├── strings.xml
 │       │           └── themes.xml
 │       └── test/java/com/example/vocabgame/
-│           └── GameEngineTest.kt          <- Unit tests for matching & scoring rules
+│           ├── GameEngineTest.kt
+│           ├── ChangeLetterEngineTest.kt
+│           ├── RearrangeEngineTest.kt
+│           └── CrosswordEngineTest.kt
 ├── gradle/
 │   └── wrapper/
-│       └── gradle-wrapper.properties  <- Gradle 8.5 wrapper configuration
-├── build.gradle                       <- Top-level project build script
-├── settings.gradle                    <- Project settings
+│       └── gradle-wrapper.properties
+├── build.gradle
+├── settings.gradle
 ├── gradle.properties
-├── gradlew                            <- Gradle wrapper script (POSIX)
-├── gradlew.bat                        <- Gradle wrapper script (Windows)
 └── README.md
-```
-
----
-
-## 🛠️ Building & Running Locally
-
-### Option A: Using Android Studio
-1. Open **Android Studio** (Hedgehog 2023.1.1 or newer recommended).
-2. Select **File > Open...** and browse to this extracted project folder.
-3. Allow Gradle to sync dependencies.
-4. Select an Android Emulator or connected physical device (Android 7.0 / API 24+).
-5. Click **Run 'app'** (`Shift + F10`).
-
-### Option B: Command Line (Gradle)
-```bash
-# Ensure execution permissions
-chmod +x gradlew
-
-# Run unit tests
-./gradlew test
-
-# Build debug APK
-./gradlew assembleDebug
-
-# Output APK path:
-# app/build/outputs/apk/debug/app-debug.apk
 ```

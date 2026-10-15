@@ -14,3 +14,16 @@ data class ChainGameStats(
     val totalChainLength: Int,
     val averageChainCount: Double
 )
+
+
+/**
+ * Historical game record for a completed round of "Change a Letter".
+ */
+data class ChainGameRecord(
+    val id: Long,
+    val chainLength: Int,
+    val userWords: Int,
+    val points: Int,
+    val winner: String,
+    val timestamp: Long
+)

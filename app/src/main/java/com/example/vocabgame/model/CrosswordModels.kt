@@ -47,3 +47,24 @@ data class CrosswordRecord(
     val isCompleted: Boolean,
     val timestamp: Long
 )
+
+
+enum class GameType(val displayName: String) {
+    GUESS_WORD("Guess Word"),
+    CHANGE_LETTER("Change a Letter"),
+    REARRANGE("Rearrange"),
+    CROSSWORD("Crossword")
+}
+
+/**
+ * Unified model representing a historical game record across all four game modes.
+ */
+data class UnifiedGameHistoryRecord(
+    val gameType: GameType,
+    val title: String,
+    val subtitle: String,
+    val pointsText: String,
+    val isSuccess: Boolean,
+    val timestamp: Long,
+    val rawObject: Any
+)

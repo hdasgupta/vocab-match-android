@@ -86,6 +86,16 @@
                                     android:textColor="@color/text_primary" />
 
                                 <com.google.android.material.button.MaterialButton
+                                    android:id="@+id/btnViewGuessHistory"
+                                    style="@style/Widget.Material3.Button.TextButton"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:text="@string/btn_view_history"
+                                    android:textColor="@color/primary_brand"
+                                    android:textSize="12sp"
+                                    android:paddingHorizontal="6dp" />
+
+                                <com.google.android.material.button.MaterialButton
                                     android:id="@+id/btnResetStats"
                                     style="@style/Widget.Material3.Button.TextButton"
                                     android:layout_width="wrap_content"
@@ -597,6 +607,16 @@
                                     android:textSize="17sp"
                                     android:textStyle="bold"
                                     android:textColor="@color/text_primary" />
+
+                                <com.google.android.material.button.MaterialButton
+                                    android:id="@+id/btnViewChainHistory"
+                                    style="@style/Widget.Material3.Button.TextButton"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:text="@string/btn_view_history"
+                                    android:textColor="@color/primary_brand"
+                                    android:textSize="12sp"
+                                    android:paddingHorizontal="6dp" />
 
                                 <com.google.android.material.button.MaterialButton
                                     android:id="@+id/btnResetChainStats"

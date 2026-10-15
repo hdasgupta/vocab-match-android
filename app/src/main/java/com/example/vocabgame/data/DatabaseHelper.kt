@@ -10,6 +10,10 @@ import com.example.vocabgame.model.CrosswordGameStats
 import com.example.vocabgame.model.CrosswordRecord
 import com.example.vocabgame.model.RearrangeGameStats
 import com.example.vocabgame.model.RearrangeRecord
+import com.example.vocabgame.model.GuessWordRecord
+import com.example.vocabgame.model.ChainGameRecord
+import com.example.vocabgame.model.UnifiedGameHistoryRecord
+import com.example.vocabgame.model.GameType
 
 /**
  * SQLiteOpenHelper implementation utilizing Android's built-in SQLite database engine.
@@ -293,6 +297,31 @@ class DatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME
         }
     }
 
+    fun getGuessWordHistory(limit: Int = 50): List<GuessWordRecord> {
+        val list = mutableListOf<GuessWordRecord>()
+        val db = readableDatabase
+        val cursor = db.rawQuery(
+            "SELECT $COL_ID, $COL_SECRET_WORD, $COL_GUESS_COUNT, $COL_POINTS, $COL_TIMESTAMP FROM $TABLE_GAMES ORDER BY $COL_TIMESTAMP DESC LIMIT ?",
+            arrayOf(limit.toString())
+        )
+
+        cursor.use {
+            while (it.moveToNext()) {
+                list.add(
+                    GuessWordRecord(
+                        id = it.getLong(0),
+                        secretWord = it.getString(1),
+                        guessCount = it.getInt(2),
+                        points = it.getDouble(3),
+                        timestamp = it.getLong(4)
+                    )
+                )
+            }
+        }
+        return list
+    }
+
+
     fun getAggregatedStats(): GameStats {
         val db = readableDatabase
         val cursor = db.rawQuery(
@@ -422,6 +451,32 @@ class DatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME
             db.endTransaction()
         }
     }
+
+    fun getChainHistory(limit: Int = 50): List<ChainGameRecord> {
+        val list = mutableListOf<ChainGameRecord>()
+        val db = readableDatabase
+        val cursor = db.rawQuery(
+            "SELECT $COL_CHAIN_ID, $COL_CHAIN_LENGTH, $COL_CHAIN_USER_WORDS, $COL_CHAIN_POINTS, $COL_CHAIN_WINNER, $COL_CHAIN_TIMESTAMP FROM $TABLE_CHAIN_GAMES ORDER BY $COL_CHAIN_TIMESTAMP DESC LIMIT ?",
+            arrayOf(limit.toString())
+        )
+
+        cursor.use {
+            while (it.moveToNext()) {
+                list.add(
+                    ChainGameRecord(
+                        id = it.getLong(0),
+                        chainLength = it.getInt(1),
+                        userWords = it.getInt(2),
+                        points = it.getInt(3),
+                        winner = it.getString(4),
+                        timestamp = it.getLong(5)
+                    )
+                )
+            }
+        }
+        return list
+    }
+
 
     // ==========================================
     // 3. Rearrange Methods
@@ -678,5 +733,74 @@ class DatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME
         } finally {
             db.endTransaction()
         }
+    }
+
+    fun getAllGamesHistory(limit: Int = 100): List<UnifiedGameHistoryRecord> {
+        val combined = mutableListOf<UnifiedGameHistoryRecord>()
+
+        // 1. Guess Word
+        for (g in getGuessWordHistory(limit)) {
+            combined.add(
+                UnifiedGameHistoryRecord(
+                    gameType = GameType.GUESS_WORD,
+                    title = g.secretWord,
+                    subtitle = "Solved in ${g.guessCount} ${if (g.guessCount == 1) "guess" else "guesses"}",
+                    pointsText = "+${String.format(java.util.Locale.US, "%.1f", g.points)} pts",
+                    isSuccess = g.points > 0,
+                    timestamp = g.timestamp,
+                    rawObject = g
+                )
+            )
+        }
+
+        // 2. Change a Letter
+        for (c in getChainHistory(limit)) {
+            val isUserWin = c.winner.equals("USER", ignoreCase = true)
+            combined.add(
+                UnifiedGameHistoryRecord(
+                    gameType = GameType.CHANGE_LETTER,
+                    title = if (isUserWin) "Player Won vs Computer" else "Surrendered to Computer",
+                    subtitle = "Chain: ${c.chainLength} words • You played: ${c.userWords}",
+                    pointsText = "+${c.points} pts",
+                    isSuccess = isUserWin,
+                    timestamp = c.timestamp,
+                    rawObject = c
+                )
+            )
+        }
+
+        // 3. Rearrange
+        for (r in getRearrangeHistory(limit)) {
+            val allFound = r.wordsMissedList.isEmpty()
+            combined.add(
+                UnifiedGameHistoryRecord(
+                    gameType = GameType.REARRANGE,
+                    title = "Base Word: ${r.baseWord}",
+                    subtitle = "Found ${r.wordsFoundCount} of ${r.possibleWordsCount} anagrams",
+                    pointsText = "+${r.points} pts",
+                    isSuccess = allFound,
+                    timestamp = r.timestamp,
+                    rawObject = r
+                )
+            )
+        }
+
+        // 4. Crossword
+        for (cw in getCrosswordHistory(limit)) {
+            combined.add(
+                UnifiedGameHistoryRecord(
+                    gameType = GameType.CROSSWORD,
+                    title = "1A: ${cw.across1} • 3A: ${cw.across2}",
+                    subtitle = "1D: ${cw.down1} • 2D: ${cw.down2} | Correct: ${cw.correctGuesses}/12",
+                    pointsText = "${if (cw.points >= 0) "+" else ""}${cw.points} pts",
+                    isSuccess = cw.isCompleted,
+                    timestamp = cw.timestamp,
+                    rawObject = cw
+                )
+            )
+        }
+
+        combined.sortByDescending { it.timestamp }
+        return if (combined.size > limit) combined.subList(0, limit) else combined
     }
 }

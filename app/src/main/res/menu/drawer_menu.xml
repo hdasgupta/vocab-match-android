@@ -15,4 +15,11 @@
             android:id="@+id/nav_crossword"
             android:title="@string/nav_crossword" />
     </group>
+    <item android:title="History">
+        <menu>
+            <item
+                android:id="@+id/nav_all_history"
+                android:title="@string/nav_all_history" />
+        </menu>
+    </item>
 </menu>
