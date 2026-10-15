@@ -98,4 +98,41 @@ class RearrangeEngineTest {
         val error = result as RearrangeSubmitResult.Error
         assertTrue(error.message.contains("does not use the exact 4 letters"))
     }
+
+    @Test
+    fun testMissedWordsReturnedWhenRoundFinishedEarly() {
+        engine.startNewGame("STOP")
+        engine.submitWord("POST")
+        engine.submitWord("POTS")
+        
+        // Player finishes early without finding STOP and TOPS
+        engine.finishGame()
+        assertTrue(engine.isGameOver)
+
+        val missedEntries = engine.getMissedWords()
+        assertEquals(2, missedEntries.size)
+        val missedWords = missedEntries.map { it.word }
+        assertTrue(missedWords.contains("STOP"))
+        assertTrue(missedWords.contains("TOPS"))
+        assertFalse(missedWords.contains("POST"))
+        assertFalse(missedWords.contains("POTS"))
+
+        for (entry in missedEntries) {
+            assertFalse(entry.isFound)
+            assertEquals(0, entry.pointsAwarded)
+            assertTrue(entry.meaning.isNotEmpty())
+        }
+    }
+
+    @Test
+    fun testMissedWordsEmptyWhenAllWordsFound() {
+        engine.startNewGame("CARE")
+        engine.submitWord("CARE")
+        engine.submitWord("RACE")
+        engine.submitWord("ACRE")
+        assertTrue(engine.isGameOver)
+
+        val missed = engine.getMissedWords()
+        assertTrue("Missed words should be empty when all words are found", missed.isEmpty())
+    }
 }

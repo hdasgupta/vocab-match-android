@@ -8,6 +8,7 @@ data class RearrangeRecord(
     val baseWord: String,
     val wordsFoundCount: Int,
     val wordsFoundList: List<String>,
+    val wordsMissedList: List<String>,
     val possibleWordsCount: Int,
     val points: Int,
     val timestamp: Long

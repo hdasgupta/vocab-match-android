@@ -52,11 +52,11 @@ class RearrangeWordAdapter : RecyclerView.Adapter<RearrangeWordAdapter.WordViewH
                 card.strokeColor = ContextCompat.getColor(context, R.color.card_stroke)
             } else {
                 tvBadge.text = "✕"
-                tvBadge.setTextColor(ContextCompat.getColor(context, R.color.text_secondary))
+                tvBadge.setTextColor(ContextCompat.getColor(context, R.color.danger_red))
                 tvPoints.visibility = View.VISIBLE
-                tvPoints.text = "Missed"
-                tvPoints.setTextColor(ContextCompat.getColor(context, R.color.text_secondary))
-                card.strokeColor = ContextCompat.getColor(context, R.color.card_stroke)
+                tvPoints.text = "Missed (0 pts)"
+                tvPoints.setTextColor(ContextCompat.getColor(context, R.color.danger_red))
+                card.strokeColor = ContextCompat.getColor(context, R.color.danger_red)
             }
         }
     }

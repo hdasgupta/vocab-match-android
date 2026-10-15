@@ -52,14 +52,26 @@
 
         </LinearLayout>
 
+        <!-- Words Found -->
         <TextView
             android:id="@+id/tvHistWordsList"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="Words found: POST, POTS, SPOT"
+            android:text="Found (3/4): POST, POTS, SPOT"
             android:textSize="13sp"
             android:textColor="@color/text_primary"
             android:layout_marginTop="4dp" />
+
+        <!-- Missed Words -->
+        <TextView
+            android:id="@+id/tvHistMissedList"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Missed (1): TOPS"
+            android:textSize="12sp"
+            android:textStyle="bold"
+            android:textColor="@color/danger_red"
+            android:layout_marginTop="3dp" />
 
         <TextView
             android:id="@+id/tvHistDate"

@@ -1244,8 +1244,8 @@ class MainActivity : AppCompatActivity() {
         val base = rearrangeEngine.baseWord
         val possibleCount = rearrangeEngine.allPossibleAnagrams.size
 
-        // Record in SQLite database
-        dbHelper.recordRearrangeGame(base, foundList, possibleCount, points)
+        // Record in SQLite database with empty missed words
+        dbHelper.recordRearrangeGame(base, foundList, emptyList(), possibleCount, points)
         refreshRearrangeStats()
 
         showRearrangeOutcomeDialog(
@@ -1253,7 +1253,8 @@ class MainActivity : AppCompatActivity() {
             message = "Brilliant! You found all $possibleCount words that can be rearranged from '$base'.",
             wordsFoundCount = foundList.size,
             possibleCount = possibleCount,
-            points = points
+            points = points,
+            missedWords = emptyList()
         )
     }
 
@@ -1274,23 +1275,27 @@ class MainActivity : AppCompatActivity() {
                 btnSubmitRearrangeWord.isEnabled = false
                 btnFinishRearrangeRound.isEnabled = false
 
+                val missedEntries = rearrangeEngine.getMissedWords()
+                val missedWordsList = missedEntries.map { it.word }
+
                 // Record in SQLite database
-                dbHelper.recordRearrangeGame(base, foundList, possibleCount, finalPoints)
+                dbHelper.recordRearrangeGame(base, foundList, missedWordsList, possibleCount, finalPoints)
                 refreshRearrangeStats()
 
                 // Display all words (found + missed) in the adapter
                 val combined = mutableListOf<RearrangeWordEntry>()
                 combined.addAll(rearrangeEngine.getFoundWordEntries())
-                combined.addAll(rearrangeEngine.getMissedWords())
+                combined.addAll(missedEntries)
                 rearrangeWordAdapter.submitList(combined)
                 updateRearrangeViews()
 
                 showRearrangeOutcomeDialog(
                     title = "Round Finished",
-                    message = "You discovered ${foundList.size} of $possibleCount possible words from '$base'.\nCheck the list below to study the missed words and definitions!",
+                    message = "You discovered ${foundList.size} of $possibleCount possible words from '$base'.",
                     wordsFoundCount = foundList.size,
                     possibleCount = possibleCount,
-                    points = finalPoints
+                    points = finalPoints,
+                    missedWords = missedEntries
                 )
             }
             .setNegativeButton(R.string.cancel, null)
@@ -1324,10 +1329,17 @@ class MainActivity : AppCompatActivity() {
         tvRearrangeAvgPoints.text = String.format(Locale.US, "%.1f", stats.averagePointsPerGame)
     }
 
-    private fun showRearrangeOutcomeDialog(title: String, message: String, wordsFoundCount: Int, possibleCount: Int, points: Int) {
+    private fun showRearrangeOutcomeDialog(
+        title: String,
+        message: String,
+        wordsFoundCount: Int,
+        possibleCount: Int,
+        points: Int,
+        missedWords: List<RearrangeWordEntry> = emptyList()
+    ) {
         val dialog = Dialog(this)
         val density = resources.displayMetrics.density
-        val padding = (24 * density).toInt()
+        val padding = (20 * density).toInt()
 
         val card = MaterialCardView(this).apply {
             radius = 20f * density
@@ -1356,7 +1368,7 @@ class MainActivity : AppCompatActivity() {
             textSize = 13f
             setTextColor(ContextCompat.getColor(this@MainActivity, R.color.text_secondary))
             gravity = Gravity.CENTER
-            setPadding(0, (8 * density).toInt(), 0, (14 * density).toInt())
+            setPadding(0, (6 * density).toInt(), 0, (8 * density).toInt())
             setLineSpacing(2f * density, 1f)
         }
 
@@ -1366,13 +1378,99 @@ class MainActivity : AppCompatActivity() {
             typeface = Typeface.DEFAULT_BOLD
             setTextColor(ContextCompat.getColor(this@MainActivity, R.color.success_green))
             gravity = Gravity.CENTER
-            setPadding(0, 0, 0, (16 * density).toInt())
+            setPadding(0, 0, 0, (10 * density).toInt())
+        }
+
+        layout.addView(titleView)
+        layout.addView(msgView)
+        layout.addView(scoreBadge)
+
+        // Show missed anagrams with definitions if any exist
+        if (missedWords.isNotEmpty()) {
+            val missedHeader = TextView(this).apply {
+                text = "⚠️ Missed Words (${missedWords.size}):"
+                textSize = 13f
+                typeface = Typeface.DEFAULT_BOLD
+                setTextColor(ContextCompat.getColor(this@MainActivity, R.color.danger_red))
+                setPadding(0, (4 * density).toInt(), 0, (6 * density).toInt())
+            }
+            layout.addView(missedHeader)
+
+            val scrollContainer = android.widget.ScrollView(this).apply {
+                layoutParams = LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.MATCH_PARENT,
+                    (160 * density).toInt()
+                )
+            }
+            val missedListLayout = LinearLayout(this).apply {
+                orientation = LinearLayout.VERTICAL
+            }
+
+            for (missed in missedWords) {
+                val itemCard = LinearLayout(this).apply {
+                    orientation = LinearLayout.VERTICAL
+                    setPadding((10 * density).toInt(), (6 * density).toInt(), (10 * density).toInt(), (6 * density).toInt())
+                    setBackgroundResource(R.drawable.bg_stat_cell)
+                    val lp = LinearLayout.LayoutParams(
+                        LinearLayout.LayoutParams.MATCH_PARENT,
+                        LinearLayout.LayoutParams.WRAP_CONTENT
+                    )
+                    lp.bottomMargin = (6 * density).toInt()
+                    layoutParams = lp
+                }
+
+                val wordTv = TextView(this).apply {
+                    text = "✕ ${missed.word}"
+                    textSize = 14f
+                    typeface = Typeface.MONOSPACE
+                    setTypeface(typeface, Typeface.BOLD)
+                    setTextColor(ContextCompat.getColor(this@MainActivity, R.color.danger_red))
+                }
+
+                val meaningTv = TextView(this).apply {
+                    text = missed.meaning
+                    textSize = 12f
+                    setTextColor(ContextCompat.getColor(this@MainActivity, R.color.text_secondary))
+                    setLineSpacing(1f * density, 1f)
+                }
+
+                itemCard.addView(wordTv)
+                itemCard.addView(meaningTv)
+                missedListLayout.addView(itemCard)
+            }
+            scrollContainer.addView(missedListLayout)
+            layout.addView(scrollContainer)
+        } else {
+            val perfectTv = TextView(this).apply {
+                text = "🎉 Flawless! You discovered every single anagram!"
+                textSize = 13f
+                typeface = Typeface.DEFAULT_BOLD
+                setTextColor(ContextCompat.getColor(this@MainActivity, R.color.success_green))
+                gravity = Gravity.CENTER
+                setPadding(0, (4 * density).toInt(), 0, (10 * density).toInt())
+            }
+            layout.addView(perfectTv)
+        }
+
+        val buttonRow = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER
+            setPadding(0, (12 * density).toInt(), 0, 0)
+        }
+
+        val btnReviewBoard = com.google.android.material.button.MaterialButton(
+            this, null, com.google.android.material.R.attr.borderlessButtonStyle
+        ).apply {
+            text = "Review Board"
+            textSize = 13f
+            setTextColor(ContextCompat.getColor(this@MainActivity, R.color.primary_brand))
+            setOnClickListener { dialog.dismiss() }
         }
 
         val btnPlayNext = com.google.android.material.button.MaterialButton(this).apply {
             text = "Play Next Word"
-            textSize = 15f
-            cornerRadius = (12 * density).toInt()
+            textSize = 13f
+            cornerRadius = (10 * density).toInt()
             setBackgroundColor(ContextCompat.getColor(this@MainActivity, R.color.primary_brand))
             setOnClickListener {
                 dialog.dismiss()
@@ -1380,15 +1478,176 @@ class MainActivity : AppCompatActivity() {
             }
         }
 
-        layout.addView(titleView)
-        layout.addView(msgView)
-        layout.addView(scoreBadge)
-        layout.addView(btnPlayNext)
+        val btnParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f).apply {
+            marginEnd = (4 * density).toInt()
+        }
+        val btnNextParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1.2f).apply {
+            marginStart = (4 * density).toInt()
+        }
+        btnReviewBoard.layoutParams = btnParams
+        btnPlayNext.layoutParams = btnNextParams
+
+        buttonRow.addView(btnReviewBoard)
+        buttonRow.addView(btnPlayNext)
+        layout.addView(buttonRow)
         card.addView(layout)
 
         dialog.setContentView(card)
         dialog.window?.setBackgroundDrawableResource(android.R.color.transparent)
         dialog.setCancelable(false)
+        dialog.show()
+    }
+
+    private fun showRearrangeHistoryDetailsDialog(record: RearrangeRecord) {
+        val dialog = Dialog(this)
+        val density = resources.displayMetrics.density
+        val padding = (20 * density).toInt()
+
+        val card = MaterialCardView(this).apply {
+            radius = 18f * density
+            cardElevation = 6f * density
+            setStrokeColor(ContextCompat.getColor(this@MainActivity, R.color.card_stroke))
+            strokeWidth = (1.5f * density).toInt()
+            setCardBackgroundColor(ContextCompat.getColor(this@MainActivity, R.color.card_background))
+        }
+
+        val layout = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(padding, padding, padding, padding)
+        }
+
+        val titleView = TextView(this).apply {
+            text = "Game Record: ${record.baseWord}"
+            textSize = 18f
+            typeface = Typeface.DEFAULT_BOLD
+            setTextColor(ContextCompat.getColor(this@MainActivity, R.color.text_primary))
+        }
+
+        val subtitleView = TextView(this).apply {
+            text = "Score: +${record.points} pts • Found ${record.wordsFoundCount} of ${record.possibleWordsCount} words"
+            textSize = 12f
+            setTextColor(ContextCompat.getColor(this@MainActivity, R.color.text_secondary))
+            setPadding(0, (2 * density).toInt(), 0, (10 * density).toInt())
+        }
+
+        val scrollContainer = android.widget.ScrollView(this).apply {
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                (280 * density).toInt()
+            )
+        }
+
+        val listLayout = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+        }
+
+        if (record.wordsFoundList.isNotEmpty()) {
+            val foundHeader = TextView(this).apply {
+                text = "✓ Discovered Words (${record.wordsFoundList.size}):"
+                textSize = 13f
+                typeface = Typeface.DEFAULT_BOLD
+                setTextColor(ContextCompat.getColor(this@MainActivity, R.color.success_green))
+                setPadding(0, (4 * density).toInt(), 0, (4 * density).toInt())
+            }
+            listLayout.addView(foundHeader)
+
+            for (w in record.wordsFoundList) {
+                val itemCard = LinearLayout(this).apply {
+                    orientation = LinearLayout.VERTICAL
+                    setPadding((10 * density).toInt(), (6 * density).toInt(), (10 * density).toInt(), (6 * density).toInt())
+                    setBackgroundResource(R.drawable.bg_stat_cell)
+                    val lp = LinearLayout.LayoutParams(
+                        LinearLayout.LayoutParams.MATCH_PARENT,
+                        LinearLayout.LayoutParams.WRAP_CONTENT
+                    )
+                    lp.bottomMargin = (4 * density).toInt()
+                    layoutParams = lp
+                }
+                val wTv = TextView(this).apply {
+                    text = "✓ $w"
+                    textSize = 14f
+                    typeface = Typeface.MONOSPACE
+                    setTypeface(typeface, Typeface.BOLD)
+                    setTextColor(ContextCompat.getColor(this@MainActivity, R.color.text_primary))
+                }
+                val mTv = TextView(this).apply {
+                    text = WordMeanings.getMeaning(w)
+                    textSize = 12f
+                    setTextColor(ContextCompat.getColor(this@MainActivity, R.color.text_secondary))
+                }
+                itemCard.addView(wTv)
+                itemCard.addView(mTv)
+                listLayout.addView(itemCard)
+            }
+        }
+
+        if (record.wordsMissedList.isNotEmpty()) {
+            val missedHeader = TextView(this).apply {
+                text = "✕ Missed Words (${record.wordsMissedList.size}):"
+                textSize = 13f
+                typeface = Typeface.DEFAULT_BOLD
+                setTextColor(ContextCompat.getColor(this@MainActivity, R.color.danger_red))
+                setPadding(0, (10 * density).toInt(), 0, (4 * density).toInt())
+            }
+            listLayout.addView(missedHeader)
+
+            for (w in record.wordsMissedList) {
+                val itemCard = LinearLayout(this).apply {
+                    orientation = LinearLayout.VERTICAL
+                    setPadding((10 * density).toInt(), (6 * density).toInt(), (10 * density).toInt(), (6 * density).toInt())
+                    setBackgroundResource(R.drawable.bg_stat_cell)
+                    val lp = LinearLayout.LayoutParams(
+                        LinearLayout.LayoutParams.MATCH_PARENT,
+                        LinearLayout.LayoutParams.WRAP_CONTENT
+                    )
+                    lp.bottomMargin = (4 * density).toInt()
+                    layoutParams = lp
+                }
+                val wTv = TextView(this).apply {
+                    text = "✕ $w"
+                    textSize = 14f
+                    typeface = Typeface.MONOSPACE
+                    setTypeface(typeface, Typeface.BOLD)
+                    setTextColor(ContextCompat.getColor(this@MainActivity, R.color.danger_red))
+                }
+                val mTv = TextView(this).apply {
+                    text = WordMeanings.getMeaning(w)
+                    textSize = 12f
+                    setTextColor(ContextCompat.getColor(this@MainActivity, R.color.text_secondary))
+                }
+                itemCard.addView(wTv)
+                itemCard.addView(mTv)
+                listLayout.addView(itemCard)
+            }
+        } else {
+            val perfectTv = TextView(this).apply {
+                text = "🎉 Flawless! All possible anagrams were discovered."
+                textSize = 13f
+                typeface = Typeface.DEFAULT_BOLD
+                setTextColor(ContextCompat.getColor(this@MainActivity, R.color.success_green))
+                setPadding(0, (8 * density).toInt(), 0, (4 * density).toInt())
+            }
+            listLayout.addView(perfectTv)
+        }
+
+        scrollContainer.addView(listLayout)
+
+        val btnClose = com.google.android.material.button.MaterialButton(this).apply {
+            text = "Back to History"
+            textSize = 14f
+            cornerRadius = (10 * density).toInt()
+            setBackgroundColor(ContextCompat.getColor(this@MainActivity, R.color.primary_brand))
+            setOnClickListener { dialog.dismiss() }
+        }
+
+        layout.addView(titleView)
+        layout.addView(subtitleView)
+        layout.addView(scrollContainer)
+        layout.addView(btnClose)
+        card.addView(layout)
+
+        dialog.setContentView(card)
+        dialog.window?.setBackgroundDrawableResource(android.R.color.transparent)
         dialog.show()
     }
 
@@ -1418,7 +1677,7 @@ class MainActivity : AppCompatActivity() {
         }
 
         val subtitleView = TextView(this).apply {
-            text = "Historical records persisted in SQLite database"
+            text = "Historical records persisted in SQLite database (Tap any game to inspect words & definitions)"
             textSize = 12f
             setTextColor(ContextCompat.getColor(this@MainActivity, R.color.text_secondary))
             setPadding(0, (2 * density).toInt(), 0, (12 * density).toInt())
@@ -1433,7 +1692,9 @@ class MainActivity : AppCompatActivity() {
             layoutManager = LinearLayoutManager(this@MainActivity)
         }
 
-        val adapter = RearrangeHistoryAdapter()
+        val adapter = RearrangeHistoryAdapter { record ->
+            showRearrangeHistoryDetailsDialog(record)
+        }
         rvHistory.adapter = adapter
         adapter.submitList(historyList)
 

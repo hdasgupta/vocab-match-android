@@ -21,7 +21,7 @@ class DatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME
 
     companion object {
         const val DATABASE_NAME = "vocab_game.db"
-        const val DATABASE_VERSION = 3
+        const val DATABASE_VERSION = 4
 
         // ==========================================
         // 1. Guess Word Tables
@@ -65,6 +65,7 @@ class DatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME
         const val COL_REARRANGE_BASE_WORD = "base_word"
         const val COL_REARRANGE_WORDS_FOUND = "words_found_count"
         const val COL_REARRANGE_WORDS_CSV = "words_found_csv"
+        const val COL_REARRANGE_WORDS_MISSED_CSV = "words_missed_csv"
         const val COL_REARRANGE_POSSIBLE_WORDS = "possible_words_count"
         const val COL_REARRANGE_POINTS = "points"
         const val COL_REARRANGE_TIMESTAMP = "timestamp"
@@ -152,6 +153,7 @@ class DatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME
                 $COL_REARRANGE_BASE_WORD TEXT NOT NULL,
                 $COL_REARRANGE_WORDS_FOUND INTEGER NOT NULL,
                 $COL_REARRANGE_WORDS_CSV TEXT NOT NULL,
+                $COL_REARRANGE_WORDS_MISSED_CSV TEXT NOT NULL DEFAULT '',
                 $COL_REARRANGE_POSSIBLE_WORDS INTEGER NOT NULL,
                 $COL_REARRANGE_POINTS INTEGER NOT NULL,
                 $COL_REARRANGE_TIMESTAMP INTEGER NOT NULL
@@ -183,6 +185,13 @@ class DatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME
         }
         if (oldVersion < 3) {
             createRearrangeTables(db)
+        }
+        if (oldVersion < 4) {
+            try {
+                db.execSQL("ALTER TABLE $TABLE_REARRANGE_GAMES ADD COLUMN $COL_REARRANGE_WORDS_MISSED_CSV TEXT NOT NULL DEFAULT ''")
+            } catch (e: Exception) {
+                // Column might already exist
+            }
         }
     }
 
@@ -352,15 +361,23 @@ class DatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME
     // ==========================================
 
     @Synchronized
-    fun recordRearrangeGame(baseWord: String, wordsFound: List<String>, possibleWordsCount: Int, points: Int) {
+    fun recordRearrangeGame(
+        baseWord: String,
+        wordsFound: List<String>,
+        wordsMissed: List<String>,
+        possibleWordsCount: Int,
+        points: Int
+    ) {
         val db = writableDatabase
         db.beginTransaction()
         try {
-            val csv = wordsFound.joinToString(",")
+            val foundCsv = wordsFound.joinToString(",")
+            val missedCsv = wordsMissed.joinToString(",")
             val recordValues = ContentValues().apply {
                 put(COL_REARRANGE_BASE_WORD, baseWord)
                 put(COL_REARRANGE_WORDS_FOUND, wordsFound.size)
-                put(COL_REARRANGE_WORDS_CSV, csv)
+                put(COL_REARRANGE_WORDS_CSV, foundCsv)
+                put(COL_REARRANGE_WORDS_MISSED_CSV, missedCsv)
                 put(COL_REARRANGE_POSSIBLE_WORDS, possibleWordsCount)
                 put(COL_REARRANGE_POINTS, points)
                 put(COL_REARRANGE_TIMESTAMP, System.currentTimeMillis())
@@ -416,7 +433,7 @@ class DatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME
         val list = mutableListOf<RearrangeRecord>()
         val db = readableDatabase
         val cursor = db.rawQuery(
-            "SELECT $COL_REARRANGE_ID, $COL_REARRANGE_BASE_WORD, $COL_REARRANGE_WORDS_FOUND, $COL_REARRANGE_WORDS_CSV, $COL_REARRANGE_POSSIBLE_WORDS, $COL_REARRANGE_POINTS, $COL_REARRANGE_TIMESTAMP FROM $TABLE_REARRANGE_GAMES ORDER BY $COL_REARRANGE_TIMESTAMP DESC LIMIT ?",
+            "SELECT $COL_REARRANGE_ID, $COL_REARRANGE_BASE_WORD, $COL_REARRANGE_WORDS_FOUND, $COL_REARRANGE_WORDS_CSV, $COL_REARRANGE_WORDS_MISSED_CSV, $COL_REARRANGE_POSSIBLE_WORDS, $COL_REARRANGE_POINTS, $COL_REARRANGE_TIMESTAMP FROM $TABLE_REARRANGE_GAMES ORDER BY $COL_REARRANGE_TIMESTAMP DESC LIMIT ?",
             arrayOf(limit.toString())
         )
 
@@ -425,18 +442,21 @@ class DatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME
                 val id = it.getLong(0)
                 val base = it.getString(1)
                 val foundCount = it.getInt(2)
-                val csv = it.getString(3)
-                val possible = it.getInt(4)
-                val pts = it.getInt(5)
-                val ts = it.getLong(6)
+                val foundCsv = it.getString(3)
+                val missedCsv = it.getString(4)
+                val possible = it.getInt(5)
+                val pts = it.getInt(6)
+                val ts = it.getLong(7)
 
-                val wordsList = if (csv.isNotBlank()) csv.split(",") else emptyList()
+                val wordsFoundList = if (foundCsv.isNotBlank()) foundCsv.split(",") else emptyList()
+                val wordsMissedList = if (missedCsv.isNotBlank()) missedCsv.split(",") else emptyList()
                 list.add(
                     RearrangeRecord(
                         id = id,
                         baseWord = base,
                         wordsFoundCount = foundCount,
-                        wordsFoundList = wordsList,
+                        wordsFoundList = wordsFoundList,
+                        wordsMissedList = wordsMissedList,
                         possibleWordsCount = possible,
                         points = pts,
                         timestamp = ts
