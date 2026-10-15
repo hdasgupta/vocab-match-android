@@ -1357,6 +1357,762 @@
 
                 </LinearLayout>
 
+                <!-- ============================================================== -->
+                <!-- GAME 4: CROSSWORD CONTAINER                                    -->
+                <!-- ============================================================== -->
+                <LinearLayout
+                    android:id="@+id/layoutCrosswordContainer"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:padding="16dp"
+                    android:visibility="gone">
+
+                    <!-- Card 1: Crossword Statistics Banner -->
+                    <com.google.android.material.card.MaterialCardView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginBottom="16dp"
+                        app:cardCornerRadius="16dp"
+                        app:cardElevation="2dp"
+                        app:strokeColor="@color/card_stroke"
+                        app:strokeWidth="1dp"
+                        app:cardBackgroundColor="@color/card_background">
+
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:orientation="vertical"
+                            android:padding="16dp">
+
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="Crossword Statistics"
+                                android:textSize="16sp"
+                                android:textStyle="bold"
+                                android:textColor="@color/text_primary"
+                                android:layout_marginBottom="12dp" />
+
+                            <GridLayout
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:columnCount="2"
+                                android:rowCount="2">
+
+                                <!-- Avg Correct Guesses / Game (Requested KPI) -->
+                                <LinearLayout
+                                    android:layout_width="0dp"
+                                    android:layout_height="wrap_content"
+                                    android:layout_columnWeight="1"
+                                    android:orientation="vertical"
+                                    android:gravity="center"
+                                    android:background="@drawable/bg_stat_cell"
+                                    android:padding="10dp"
+                                    android:layout_marginEnd="6dp"
+                                    android:layout_marginBottom="8dp">
+
+                                    <TextView
+                                        android:id="@+id/tvCrosswordAvgGuesses"
+                                        android:layout_width="wrap_content"
+                                        android:layout_height="wrap_content"
+                                        android:text="0.0"
+                                        android:textSize="20sp"
+                                        android:textStyle="bold"
+                                        android:textColor="@color/primary_brand" />
+
+                                    <TextView
+                                        android:layout_width="wrap_content"
+                                        android:layout_height="wrap_content"
+                                        android:text="@string/crossword_stat_avg_guesses"
+                                        android:textSize="11sp"
+                                        android:textColor="@color/text_secondary"
+                                        android:gravity="center" />
+                                </LinearLayout>
+
+                                <!-- Total Points -->
+                                <LinearLayout
+                                    android:layout_width="0dp"
+                                    android:layout_height="wrap_content"
+                                    android:layout_columnWeight="1"
+                                    android:orientation="vertical"
+                                    android:gravity="center"
+                                    android:background="@drawable/bg_stat_cell"
+                                    android:padding="10dp"
+                                    android:layout_marginStart="6dp"
+                                    android:layout_marginBottom="8dp">
+
+                                    <TextView
+                                        android:id="@+id/tvCrosswordTotalPoints"
+                                        android:layout_width="wrap_content"
+                                        android:layout_height="wrap_content"
+                                        android:text="0 pts"
+                                        android:textSize="20sp"
+                                        android:textStyle="bold"
+                                        android:textColor="@color/success_green" />
+
+                                    <TextView
+                                        android:layout_width="wrap_content"
+                                        android:layout_height="wrap_content"
+                                        android:text="@string/crossword_stat_total_pts"
+                                        android:textSize="11sp"
+                                        android:textColor="@color/text_secondary" />
+                                </LinearLayout>
+
+                                <!-- Total Games -->
+                                <LinearLayout
+                                    android:layout_width="0dp"
+                                    android:layout_height="wrap_content"
+                                    android:layout_columnWeight="1"
+                                    android:orientation="vertical"
+                                    android:gravity="center"
+                                    android:background="@drawable/bg_stat_cell"
+                                    android:padding="10dp"
+                                    android:layout_marginEnd="6dp">
+
+                                    <TextView
+                                        android:id="@+id/tvCrosswordTotalGames"
+                                        android:layout_width="wrap_content"
+                                        android:layout_height="wrap_content"
+                                        android:text="0"
+                                        android:textSize="20sp"
+                                        android:textStyle="bold"
+                                        android:textColor="@color/accent_purple" />
+
+                                    <TextView
+                                        android:layout_width="wrap_content"
+                                        android:layout_height="wrap_content"
+                                        android:text="@string/crossword_stat_total_games"
+                                        android:textSize="11sp"
+                                        android:textColor="@color/text_secondary" />
+                                </LinearLayout>
+
+                                <!-- Hints Taken -->
+                                <LinearLayout
+                                    android:layout_width="0dp"
+                                    android:layout_height="wrap_content"
+                                    android:layout_columnWeight="1"
+                                    android:orientation="vertical"
+                                    android:gravity="center"
+                                    android:background="@drawable/bg_stat_cell"
+                                    android:padding="10dp"
+                                    android:layout_marginStart="6dp">
+
+                                    <TextView
+                                        android:id="@+id/tvCrosswordHintsTaken"
+                                        android:layout_width="wrap_content"
+                                        android:layout_height="wrap_content"
+                                        android:text="0"
+                                        android:textSize="20sp"
+                                        android:textStyle="bold"
+                                        android:textColor="@color/tracker_amber" />
+
+                                    <TextView
+                                        android:layout_width="wrap_content"
+                                        android:layout_height="wrap_content"
+                                        android:text="@string/crossword_stat_hints"
+                                        android:textSize="11sp"
+                                        android:textColor="@color/text_secondary" />
+                                </LinearLayout>
+
+                            </GridLayout>
+
+                        </LinearLayout>
+                    </com.google.android.material.card.MaterialCardView>
+
+                    <!-- Card 2: Interactive Crossword Board -->
+                    <com.google.android.material.card.MaterialCardView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginBottom="16dp"
+                        app:cardCornerRadius="16dp"
+                        app:cardElevation="2dp"
+                        app:strokeColor="@color/card_stroke"
+                        app:strokeWidth="1dp"
+                        app:cardBackgroundColor="@color/card_background">
+
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:orientation="vertical"
+                            android:padding="16dp">
+
+                            <!-- Header with score & solved count -->
+                            <LinearLayout
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:orientation="horizontal"
+                                android:gravity="center_vertical"
+                                android:layout_marginBottom="12dp">
+
+                                <div>
+                                    <TextView
+                                        android:layout_width="wrap_content"
+                                        android:layout_height="wrap_content"
+                                        android:text="@string/game_title_crossword"
+                                        android:textSize="17sp"
+                                        android:textStyle="bold"
+                                        android:textColor="@color/text_primary" />
+
+                                    <TextView
+                                        android:layout_width="wrap_content"
+                                        android:layout_height="wrap_content"
+                                        android:text="@string/crossword_subtitle"
+                                        android:textSize="12sp"
+                                        android:textColor="@color/text_secondary" />
+                                </div>
+
+                                <Space
+                                    android:layout_width="0dp"
+                                    android:layout_height="wrap_content"
+                                    android:layout_weight="1" />
+
+                                <TextView
+                                    android:id="@+id/tvCrosswordScore"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:text="Score: 0 pts"
+                                    android:textSize="13sp"
+                                    android:textStyle="bold"
+                                    android:textColor="@color/success_green"
+                                    android:background="@drawable/bg_stat_cell"
+                                    android:paddingHorizontal="10dp"
+                                    android:paddingVertical="4dp" />
+
+                            </LinearLayout>
+
+                            <!-- The 4x4 Interlocking Grid with Minimal Space -->
+                            <LinearLayout
+                                android:id="@+id/layoutCrosswordGrid"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_gravity="center_horizontal"
+                                android:orientation="vertical"
+                                android:layout_marginVertical="10dp"
+                                android:background="@drawable/bg_stat_cell"
+                                android:padding="8dp">
+
+                                <!-- Row 0: Across 1 (4 cells: (0,0), (0,1), (0,2), (0,3)) -->
+                                <LinearLayout
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:orientation="horizontal">
+
+                                    <!-- Cell 0,0 (Number 1) -->
+                                    <FrameLayout
+                                        android:id="@+id/frameCell_0_0"
+                                        android:layout_width="54dp"
+                                        android:layout_height="54dp"
+                                        android:layout_margin="3dp"
+                                        android:background="@drawable/bg_crossword_cell">
+                                        <TextView
+                                            android:id="@+id/tvNum_0_0"
+                                            android:layout_width="wrap_content"
+                                            android:layout_height="wrap_content"
+                                            android:text="1"
+                                            android:textSize="10sp"
+                                            android:textStyle="bold"
+                                            android:textColor="@color/primary_brand"
+                                            android:layout_gravity="top|start"
+                                            android:paddingStart="4dp"
+                                            android:paddingTop="2dp" />
+                                        <EditText
+                                            android:id="@+id/etCell_0_0"
+                                            android:layout_width="match_parent"
+                                            android:layout_height="match_parent"
+                                            android:gravity="center"
+                                            android:textSize="20sp"
+                                            android:textStyle="bold"
+                                            android:fontFamily="monospace"
+                                            android:maxLength="1"
+                                            android:inputType="textCapCharacters"
+                                            android:background="@null"
+                                            android:textColor="@color/text_primary" />
+                                    </FrameLayout>
+
+                                    <!-- Cell 0,1 -->
+                                    <FrameLayout
+                                        android:id="@+id/frameCell_0_1"
+                                        android:layout_width="54dp"
+                                        android:layout_height="54dp"
+                                        android:layout_margin="3dp"
+                                        android:background="@drawable/bg_crossword_cell">
+                                        <EditText
+                                            android:id="@+id/etCell_0_1"
+                                            android:layout_width="match_parent"
+                                            android:layout_height="match_parent"
+                                            android:gravity="center"
+                                            android:textSize="20sp"
+                                            android:textStyle="bold"
+                                            android:fontFamily="monospace"
+                                            android:maxLength="1"
+                                            android:inputType="textCapCharacters"
+                                            android:background="@null"
+                                            android:textColor="@color/text_primary" />
+                                    </FrameLayout>
+
+                                    <!-- Cell 0,2 -->
+                                    <FrameLayout
+                                        android:id="@+id/frameCell_0_2"
+                                        android:layout_width="54dp"
+                                        android:layout_height="54dp"
+                                        android:layout_margin="3dp"
+                                        android:background="@drawable/bg_crossword_cell">
+                                        <EditText
+                                            android:id="@+id/etCell_0_2"
+                                            android:layout_width="match_parent"
+                                            android:layout_height="match_parent"
+                                            android:gravity="center"
+                                            android:textSize="20sp"
+                                            android:textStyle="bold"
+                                            android:fontFamily="monospace"
+                                            android:maxLength="1"
+                                            android:inputType="textCapCharacters"
+                                            android:background="@null"
+                                            android:textColor="@color/text_primary" />
+                                    </FrameLayout>
+
+                                    <!-- Cell 0,3 (Number 2) -->
+                                    <FrameLayout
+                                        android:id="@+id/frameCell_0_3"
+                                        android:layout_width="54dp"
+                                        android:layout_height="54dp"
+                                        android:layout_margin="3dp"
+                                        android:background="@drawable/bg_crossword_cell">
+                                        <TextView
+                                            android:id="@+id/tvNum_0_3"
+                                            android:layout_width="wrap_content"
+                                            android:layout_height="wrap_content"
+                                            android:text="2"
+                                            android:textSize="10sp"
+                                            android:textStyle="bold"
+                                            android:textColor="@color/primary_brand"
+                                            android:layout_gravity="top|start"
+                                            android:paddingStart="4dp"
+                                            android:paddingTop="2dp" />
+                                        <EditText
+                                            android:id="@+id/etCell_0_3"
+                                            android:layout_width="match_parent"
+                                            android:layout_height="match_parent"
+                                            android:gravity="center"
+                                            android:textSize="20sp"
+                                            android:textStyle="bold"
+                                            android:fontFamily="monospace"
+                                            android:maxLength="1"
+                                            android:inputType="textCapCharacters"
+                                            android:background="@null"
+                                            android:textColor="@color/text_primary" />
+                                    </FrameLayout>
+                                </LinearLayout>
+
+                                <!-- Row 1: (1,0), Blocked (1,1), Blocked (1,2), (1,3) -->
+                                <LinearLayout
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:orientation="horizontal">
+
+                                    <!-- Cell 1,0 -->
+                                    <FrameLayout
+                                        android:id="@+id/frameCell_1_0"
+                                        android:layout_width="54dp"
+                                        android:layout_height="54dp"
+                                        android:layout_margin="3dp"
+                                        android:background="@drawable/bg_crossword_cell">
+                                        <EditText
+                                            android:id="@+id/etCell_1_0"
+                                            android:layout_width="match_parent"
+                                            android:layout_height="match_parent"
+                                            android:gravity="center"
+                                            android:textSize="20sp"
+                                            android:textStyle="bold"
+                                            android:fontFamily="monospace"
+                                            android:maxLength="1"
+                                            android:inputType="textCapCharacters"
+                                            android:background="@null"
+                                            android:textColor="@color/text_primary" />
+                                    </FrameLayout>
+
+                                    <!-- Blocked Cell 1,1 -->
+                                    <View
+                                        android:layout_width="54dp"
+                                        android:layout_height="54dp"
+                                        android:layout_margin="3dp"
+                                        android:background="@drawable/bg_crossword_blocked" />
+
+                                    <!-- Blocked Cell 1,2 -->
+                                    <View
+                                        android:layout_width="54dp"
+                                        android:layout_height="54dp"
+                                        android:layout_margin="3dp"
+                                        android:background="@drawable/bg_crossword_blocked" />
+
+                                    <!-- Cell 1,3 -->
+                                    <FrameLayout
+                                        android:id="@+id/frameCell_1_3"
+                                        android:layout_width="54dp"
+                                        android:layout_height="54dp"
+                                        android:layout_margin="3dp"
+                                        android:background="@drawable/bg_crossword_cell">
+                                        <EditText
+                                            android:id="@+id/etCell_1_3"
+                                            android:layout_width="match_parent"
+                                            android:layout_height="match_parent"
+                                            android:gravity="center"
+                                            android:textSize="20sp"
+                                            android:textStyle="bold"
+                                            android:fontFamily="monospace"
+                                            android:maxLength="1"
+                                            android:inputType="textCapCharacters"
+                                            android:background="@null"
+                                            android:textColor="@color/text_primary" />
+                                    </FrameLayout>
+                                </LinearLayout>
+
+                                <!-- Row 2: (2,0), Blocked (2,1), Blocked (2,2), (2,3) -->
+                                <LinearLayout
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:orientation="horizontal">
+
+                                    <!-- Cell 2,0 -->
+                                    <FrameLayout
+                                        android:id="@+id/frameCell_2_0"
+                                        android:layout_width="54dp"
+                                        android:layout_height="54dp"
+                                        android:layout_margin="3dp"
+                                        android:background="@drawable/bg_crossword_cell">
+                                        <EditText
+                                            android:id="@+id/etCell_2_0"
+                                            android:layout_width="match_parent"
+                                            android:layout_height="match_parent"
+                                            android:gravity="center"
+                                            android:textSize="20sp"
+                                            android:textStyle="bold"
+                                            android:fontFamily="monospace"
+                                            android:maxLength="1"
+                                            android:inputType="textCapCharacters"
+                                            android:background="@null"
+                                            android:textColor="@color/text_primary" />
+                                    </FrameLayout>
+
+                                    <!-- Blocked Cell 2,1 -->
+                                    <View
+                                        android:layout_width="54dp"
+                                        android:layout_height="54dp"
+                                        android:layout_margin="3dp"
+                                        android:background="@drawable/bg_crossword_blocked" />
+
+                                    <!-- Blocked Cell 2,2 -->
+                                    <View
+                                        android:layout_width="54dp"
+                                        android:layout_height="54dp"
+                                        android:layout_margin="3dp"
+                                        android:background="@drawable/bg_crossword_blocked" />
+
+                                    <!-- Cell 2,3 -->
+                                    <FrameLayout
+                                        android:id="@+id/frameCell_2_3"
+                                        android:layout_width="54dp"
+                                        android:layout_height="54dp"
+                                        android:layout_margin="3dp"
+                                        android:background="@drawable/bg_crossword_cell">
+                                        <EditText
+                                            android:id="@+id/etCell_2_3"
+                                            android:layout_width="match_parent"
+                                            android:layout_height="match_parent"
+                                            android:gravity="center"
+                                            android:textSize="20sp"
+                                            android:textStyle="bold"
+                                            android:fontFamily="monospace"
+                                            android:maxLength="1"
+                                            android:inputType="textCapCharacters"
+                                            android:background="@null"
+                                            android:textColor="@color/text_primary" />
+                                    </FrameLayout>
+                                </LinearLayout>
+
+                                <!-- Row 3: Across 2 (4 cells: (3,0), (3,1), (3,2), (3,3)) -->
+                                <LinearLayout
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:orientation="horizontal">
+
+                                    <!-- Cell 3,0 (Number 3) -->
+                                    <FrameLayout
+                                        android:id="@+id/frameCell_3_0"
+                                        android:layout_width="54dp"
+                                        android:layout_height="54dp"
+                                        android:layout_margin="3dp"
+                                        android:background="@drawable/bg_crossword_cell">
+                                        <TextView
+                                            android:id="@+id/tvNum_3_0"
+                                            android:layout_width="wrap_content"
+                                            android:layout_height="wrap_content"
+                                            android:text="3"
+                                            android:textSize="10sp"
+                                            android:textStyle="bold"
+                                            android:textColor="@color/primary_brand"
+                                            android:layout_gravity="top|start"
+                                            android:paddingStart="4dp"
+                                            android:paddingTop="2dp" />
+                                        <EditText
+                                            android:id="@+id/etCell_3_0"
+                                            android:layout_width="match_parent"
+                                            android:layout_height="match_parent"
+                                            android:gravity="center"
+                                            android:textSize="20sp"
+                                            android:textStyle="bold"
+                                            android:fontFamily="monospace"
+                                            android:maxLength="1"
+                                            android:inputType="textCapCharacters"
+                                            android:background="@null"
+                                            android:textColor="@color/text_primary" />
+                                    </FrameLayout>
+
+                                    <!-- Cell 3,1 -->
+                                    <FrameLayout
+                                        android:id="@+id/frameCell_3_1"
+                                        android:layout_width="54dp"
+                                        android:layout_height="54dp"
+                                        android:layout_margin="3dp"
+                                        android:background="@drawable/bg_crossword_cell">
+                                        <EditText
+                                            android:id="@+id/etCell_3_1"
+                                            android:layout_width="match_parent"
+                                            android:layout_height="match_parent"
+                                            android:gravity="center"
+                                            android:textSize="20sp"
+                                            android:textStyle="bold"
+                                            android:fontFamily="monospace"
+                                            android:maxLength="1"
+                                            android:inputType="textCapCharacters"
+                                            android:background="@null"
+                                            android:textColor="@color/text_primary" />
+                                    </FrameLayout>
+
+                                    <!-- Cell 3,2 -->
+                                    <FrameLayout
+                                        android:id="@+id/frameCell_3_2"
+                                        android:layout_width="54dp"
+                                        android:layout_height="54dp"
+                                        android:layout_margin="3dp"
+                                        android:background="@drawable/bg_crossword_cell">
+                                        <EditText
+                                            android:id="@+id/etCell_3_2"
+                                            android:layout_width="match_parent"
+                                            android:layout_height="match_parent"
+                                            android:gravity="center"
+                                            android:textSize="20sp"
+                                            android:textStyle="bold"
+                                            android:fontFamily="monospace"
+                                            android:maxLength="1"
+                                            android:inputType="textCapCharacters"
+                                            android:background="@null"
+                                            android:textColor="@color/text_primary" />
+                                    </FrameLayout>
+
+                                    <!-- Cell 3,3 -->
+                                    <FrameLayout
+                                        android:id="@+id/frameCell_3_3"
+                                        android:layout_width="54dp"
+                                        android:layout_height="54dp"
+                                        android:layout_margin="3dp"
+                                        android:background="@drawable/bg_crossword_cell">
+                                        <EditText
+                                            android:id="@+id/etCell_3_3"
+                                            android:layout_width="match_parent"
+                                            android:layout_height="match_parent"
+                                            android:gravity="center"
+                                            android:textSize="20sp"
+                                            android:textStyle="bold"
+                                            android:fontFamily="monospace"
+                                            android:maxLength="1"
+                                            android:inputType="textCapCharacters"
+                                            android:background="@null"
+                                            android:textColor="@color/text_primary" />
+                                    </FrameLayout>
+                                </LinearLayout>
+
+                            </LinearLayout>
+
+                            <!-- Status text -->
+                            <TextView
+                                android:id="@+id/tvCrosswordStatus"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:text="Fill in all 4 words! +20 pts for each correct letter guessed."
+                                android:textSize="13sp"
+                                android:textColor="@color/text_secondary"
+                                android:gravity="center"
+                                android:layout_marginBottom="12dp" />
+
+                            <!-- Hint Button (Prominent) -->
+                            <com.google.android.material.button.MaterialButton
+                                android:id="@+id/btnCrosswordHint"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:text="@string/btn_crossword_hint"
+                                android:textSize="14sp"
+                                android:textStyle="bold"
+                                app:cornerRadius="10dp"
+                                android:backgroundTint="@color/tracker_amber"
+                                android:textColor="@color/white"
+                                android:layout_marginBottom="10dp" />
+
+                            <!-- Bottom Action Buttons: New Puzzle and History/Stats -->
+                            <LinearLayout
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:orientation="horizontal">
+
+                                <com.google.android.material.button.MaterialButton
+                                    android:id="@+id/btnNewCrosswordGame"
+                                    style="@style/Widget.Material3.Button.OutlinedButton"
+                                    android:layout_width="0dp"
+                                    android:layout_height="wrap_content"
+                                    android:layout_weight="1"
+                                    android:text="@string/btn_crossword_new"
+                                    android:textSize="12sp"
+                                    app:cornerRadius="10dp"
+                                    android:textColor="@color/primary_brand"
+                                    app:strokeColor="@color/primary_brand"
+                                    android:layout_marginEnd="6dp" />
+
+                                <com.google.android.material.button.MaterialButton
+                                    android:id="@+id/btnCrosswordHistory"
+                                    style="@style/Widget.Material3.Button.OutlinedButton"
+                                    android:layout_width="0dp"
+                                    android:layout_height="wrap_content"
+                                    android:layout_weight="1"
+                                    android:text="@string/btn_crossword_history"
+                                    android:textSize="12sp"
+                                    app:cornerRadius="10dp"
+                                    android:textColor="@color/primary_brand"
+                                    app:strokeColor="@color/primary_brand"
+                                    android:layout_marginStart="6dp" />
+
+                            </LinearLayout>
+
+                        </LinearLayout>
+                    </com.google.android.material.card.MaterialCardView>
+
+                    <!-- Card 3: Crossword Clues (Horizontal & Vertical) -->
+                    <com.google.android.material.card.MaterialCardView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        app:cardCornerRadius="16dp"
+                        app:cardElevation="2dp"
+                        app:strokeColor="@color/card_stroke"
+                        app:strokeWidth="1dp"
+                        app:cardBackgroundColor="@color/card_background">
+
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:orientation="vertical"
+                            android:padding="16dp">
+
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="Clues &amp; Hints"
+                                android:textSize="16sp"
+                                android:textStyle="bold"
+                                android:textColor="@color/text_primary"
+                                android:layout_marginBottom="12dp" />
+
+                            <!-- ACROSS CLUES -->
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="@string/crossword_across_title"
+                                android:textSize="14sp"
+                                android:textStyle="bold"
+                                android:textColor="@color/primary_brand"
+                                android:layout_marginBottom="4dp" />
+
+                            <LinearLayout
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:orientation="vertical"
+                                android:background="@drawable/bg_stat_cell"
+                                android:padding="10dp"
+                                android:layout_marginBottom="8dp">
+
+                                <TextView
+                                    android:id="@+id/tvClueAcross1"
+                                    android:layout_width="match_parent"
+                                    android:layout_height="wrap_content"
+                                    android:text="1 Across (4 letters): Loading clue..."
+                                    android:textSize="13sp"
+                                    android:textColor="@color/text_primary" />
+                            </LinearLayout>
+
+                            <LinearLayout
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:orientation="vertical"
+                                android:background="@drawable/bg_stat_cell"
+                                android:padding="10dp"
+                                android:layout_marginBottom="14dp">
+
+                                <TextView
+                                    android:id="@+id/tvClueAcross2"
+                                    android:layout_width="match_parent"
+                                    android:layout_height="wrap_content"
+                                    android:text="3 Across (4 letters): Loading clue..."
+                                    android:textSize="13sp"
+                                    android:textColor="@color/text_primary" />
+                            </LinearLayout>
+
+                            <!-- DOWN CLUES -->
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="@string/crossword_down_title"
+                                android:textSize="14sp"
+                                android:textStyle="bold"
+                                android:textColor="@color/primary_brand"
+                                android:layout_marginBottom="4dp" />
+
+                            <LinearLayout
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:orientation="vertical"
+                                android:background="@drawable/bg_stat_cell"
+                                android:padding="10dp"
+                                android:layout_marginBottom="8dp">
+
+                                <TextView
+                                    android:id="@+id/tvClueDown1"
+                                    android:layout_width="match_parent"
+                                    android:layout_height="wrap_content"
+                                    android:text="1 Down (4 letters): Loading clue..."
+                                    android:textSize="13sp"
+                                    android:textColor="@color/text_primary" />
+                            </LinearLayout>
+
+                            <LinearLayout
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:orientation="vertical"
+                                android:background="@drawable/bg_stat_cell"
+                                android:padding="10dp">
+
+                                <TextView
+                                    android:id="@+id/tvClueDown2"
+                                    android:layout_width="match_parent"
+                                    android:layout_height="wrap_content"
+                                    android:text="2 Down (4 letters): Loading clue..."
+                                    android:textSize="13sp"
+                                    android:textColor="@color/text_primary" />
+                            </LinearLayout>
+
+                        </LinearLayout>
+                    </com.google.android.material.card.MaterialCardView>
+
+                </LinearLayout>
+
             </FrameLayout>
         </androidx.core.widget.NestedScrollView>
 

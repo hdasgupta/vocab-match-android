@@ -11,5 +11,8 @@
         <item
             android:id="@+id/nav_rearrange"
             android:title="@string/nav_rearrange" />
+        <item
+            android:id="@+id/nav_crossword"
+            android:title="@string/nav_crossword" />
     </group>
 </menu>

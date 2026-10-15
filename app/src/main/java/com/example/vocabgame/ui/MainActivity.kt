@@ -25,8 +25,14 @@ import com.example.vocabgame.R
 import com.example.vocabgame.data.DatabaseHelper
 import com.example.vocabgame.data.WordDictionary
 import com.example.vocabgame.data.WordMeanings
+import com.example.vocabgame.logic.CrosswordEngine
+import com.example.vocabgame.logic.CrosswordLetterResult
 import com.example.vocabgame.logic.RearrangeEngine
 import com.example.vocabgame.logic.RearrangeSubmitResult
+import com.example.vocabgame.model.CrosswordCellState
+import com.example.vocabgame.model.CrosswordRecord
+import com.example.vocabgame.ui.CrosswordHistoryAdapter
+import android.view.KeyEvent
 import com.example.vocabgame.model.RearrangeGameStats
 import com.example.vocabgame.model.RearrangeRecord
 import com.example.vocabgame.model.RearrangeWordEntry
@@ -50,6 +56,18 @@ class MainActivity : AppCompatActivity() {
         private const val GAME_GUESS_WORD = "game_guess_word"
         private const val GAME_CHANGE_LETTER = "game_change_letter"
         private const val GAME_REARRANGE = "game_rearrange"
+        private const val GAME_CROSSWORD = "game_crossword"
+
+        // Crossword state keys
+        private const val KEY_CROSSWORD_A1 = "key_crossword_a1"
+        private const val KEY_CROSSWORD_A2 = "key_crossword_a2"
+        private const val KEY_CROSSWORD_D1 = "key_crossword_d1"
+        private const val KEY_CROSSWORD_D2 = "key_crossword_d2"
+        private const val KEY_CROSSWORD_POINTS = "key_crossword_points"
+        private const val KEY_CROSSWORD_CORRECT_COUNT = "key_crossword_correct_count"
+        private const val KEY_CROSSWORD_HINTS = "key_crossword_hints"
+        private const val KEY_CROSSWORD_IS_GAME_OVER = "key_crossword_is_game_over"
+        private const val KEY_CROSSWORD_CELLS_DATA = "key_crossword_cells_data"
 
         // Rearrange state keys
         private const val KEY_REARRANGE_SCRAMBLED_LETTERS = "key_rearrange_scrambled"
@@ -89,6 +107,37 @@ class MainActivity : AppCompatActivity() {
     private lateinit var gameEngine: GameEngine
     private lateinit var chainEngine: ChangeLetterEngine
     private lateinit var rearrangeEngine: RearrangeEngine
+    private lateinit var crosswordEngine: CrosswordEngine
+
+    // Crossword Views & Maps
+    private lateinit var layoutCrosswordContainer: LinearLayout
+    private lateinit var tvCrosswordAvgGuesses: TextView
+    private lateinit var tvCrosswordTotalPoints: TextView
+    private lateinit var tvCrosswordTotalGames: TextView
+    private lateinit var tvCrosswordHintsTaken: TextView
+
+    private lateinit var tvCrosswordScore: TextView
+    private lateinit var tvCrosswordStatus: TextView
+    private lateinit var btnCrosswordHint: Button
+    private lateinit var btnNewCrosswordGame: Button
+    private lateinit var btnCrosswordHistory: Button
+
+    private lateinit var tvClueAcross1: TextView
+    private lateinit var tvClueAcross2: TextView
+    private lateinit var tvClueDown1: TextView
+    private lateinit var tvClueDown2: TextView
+
+    private val etCrosswordCellMap = mutableMapOf<Pair<Int, Int>, EditText>()
+    private val frameCrosswordCellMap = mutableMapOf<Pair<Int, Int>, FrameLayout>()
+    private val tvCrosswordNumMap = mutableMapOf<Pair<Int, Int>, TextView>()
+    private var isProgrammaticCrosswordCellUpdate = false
+
+    private val crosswordCoords = listOf(
+        Pair(0, 0), Pair(0, 1), Pair(0, 2), Pair(0, 3),
+        Pair(1, 0), Pair(1, 3),
+        Pair(2, 0), Pair(2, 3),
+        Pair(3, 0), Pair(3, 1), Pair(3, 2), Pair(3, 3)
+    )
 
     private lateinit var layoutRearrangeContainer: LinearLayout
 
@@ -179,6 +228,7 @@ class MainActivity : AppCompatActivity() {
         gameEngine = GameEngine(WordDictionary.getAllWords())
         chainEngine = ChangeLetterEngine(WordDictionary.getAllWords())
         rearrangeEngine = RearrangeEngine(WordDictionary.getAllWords())
+        crosswordEngine = CrosswordEngine(WordDictionary.getAllWords())
 
         initViews()
         setupNavigationDrawer()
@@ -194,6 +244,7 @@ class MainActivity : AppCompatActivity() {
             startNewGame()
             startNewChainGame()
             startNewRearrangeGame()
+            startNewCrosswordGame()
             switchToGame(GAME_GUESS_WORD)
         }
     }
@@ -206,6 +257,41 @@ class MainActivity : AppCompatActivity() {
         layoutGuessWordContainer = findViewById(R.id.layoutGuessWordContainer)
         layoutChangeLetterContainer = findViewById(R.id.layoutChangeLetterContainer)
         layoutRearrangeContainer = findViewById(R.id.layoutRearrangeContainer)
+        layoutCrosswordContainer = findViewById(R.id.layoutCrosswordContainer)
+
+        // Crossword Views Binding
+        tvCrosswordAvgGuesses = findViewById(R.id.tvCrosswordAvgGuesses)
+        tvCrosswordTotalPoints = findViewById(R.id.tvCrosswordTotalPoints)
+        tvCrosswordTotalGames = findViewById(R.id.tvCrosswordTotalGames)
+        tvCrosswordHintsTaken = findViewById(R.id.tvCrosswordHintsTaken)
+
+        tvCrosswordScore = findViewById(R.id.tvCrosswordScore)
+        tvCrosswordStatus = findViewById(R.id.tvCrosswordStatus)
+        btnCrosswordHint = findViewById(R.id.btnCrosswordHint)
+        btnNewCrosswordGame = findViewById(R.id.btnNewCrosswordGame)
+        btnCrosswordHistory = findViewById(R.id.btnCrosswordHistory)
+
+        tvClueAcross1 = findViewById(R.id.tvClueAcross1)
+        tvClueAcross2 = findViewById(R.id.tvClueAcross2)
+        tvClueDown1 = findViewById(R.id.tvClueDown1)
+        tvClueDown2 = findViewById(R.id.tvClueDown2)
+
+        // Bind Crossword Cells
+        bindCrosswordCell(0, 0, R.id.etCell_0_0, R.id.frameCell_0_0, R.id.tvNum_0_0)
+        bindCrosswordCell(0, 1, R.id.etCell_0_1, R.id.frameCell_0_1)
+        bindCrosswordCell(0, 2, R.id.etCell_0_2, R.id.frameCell_0_2)
+        bindCrosswordCell(0, 3, R.id.etCell_0_3, R.id.frameCell_0_3, R.id.tvNum_0_3)
+
+        bindCrosswordCell(1, 0, R.id.etCell_1_0, R.id.frameCell_1_0)
+        bindCrosswordCell(1, 3, R.id.etCell_1_3, R.id.frameCell_1_3)
+
+        bindCrosswordCell(2, 0, R.id.etCell_2_0, R.id.frameCell_2_0)
+        bindCrosswordCell(2, 3, R.id.etCell_2_3, R.id.frameCell_2_3)
+
+        bindCrosswordCell(3, 0, R.id.etCell_3_0, R.id.frameCell_3_0, R.id.tvNum_3_0)
+        bindCrosswordCell(3, 1, R.id.etCell_3_1, R.id.frameCell_3_1)
+        bindCrosswordCell(3, 2, R.id.etCell_3_2, R.id.frameCell_3_2)
+        bindCrosswordCell(3, 3, R.id.etCell_3_3, R.id.frameCell_3_3)
 
         // Rearrange Views Binding
         tvRearrangeTotalPoints = findViewById(R.id.tvRearrangeTotalPoints)
@@ -315,6 +401,11 @@ class MainActivity : AppCompatActivity() {
                     drawerLayout.closeDrawer(GravityCompat.START)
                     true
                 }
+                R.id.nav_crossword -> {
+                    switchToGame(GAME_CROSSWORD)
+                    drawerLayout.closeDrawer(GravityCompat.START)
+                    true
+                }
                 else -> false
             }
         }
@@ -327,6 +418,7 @@ class MainActivity : AppCompatActivity() {
                 layoutGuessWordContainer.visibility = View.VISIBLE
                 layoutChangeLetterContainer.visibility = View.GONE
                 layoutRearrangeContainer.visibility = View.GONE
+                layoutCrosswordContainer.visibility = View.GONE
                 toolbar.title = getString(R.string.title_guess_word)
                 toolbar.subtitle = getString(R.string.subtitle_guess_word)
                 navView.setCheckedItem(R.id.nav_guess_word)
@@ -335,6 +427,7 @@ class MainActivity : AppCompatActivity() {
                 layoutGuessWordContainer.visibility = View.GONE
                 layoutChangeLetterContainer.visibility = View.VISIBLE
                 layoutRearrangeContainer.visibility = View.GONE
+                layoutCrosswordContainer.visibility = View.GONE
                 toolbar.title = getString(R.string.title_change_letter)
                 toolbar.subtitle = getString(R.string.subtitle_change_letter)
                 navView.setCheckedItem(R.id.nav_change_letter)
@@ -343,9 +436,20 @@ class MainActivity : AppCompatActivity() {
                 layoutGuessWordContainer.visibility = View.GONE
                 layoutChangeLetterContainer.visibility = View.GONE
                 layoutRearrangeContainer.visibility = View.VISIBLE
+                layoutCrosswordContainer.visibility = View.GONE
                 toolbar.title = getString(R.string.title_rearrange)
                 toolbar.subtitle = getString(R.string.subtitle_rearrange)
                 navView.setCheckedItem(R.id.nav_rearrange)
+            }
+            GAME_CROSSWORD -> {
+                layoutGuessWordContainer.visibility = View.GONE
+                layoutChangeLetterContainer.visibility = View.GONE
+                layoutRearrangeContainer.visibility = View.GONE
+                layoutCrosswordContainer.visibility = View.VISIBLE
+                toolbar.title = getString(R.string.game_title_crossword)
+                toolbar.subtitle = getString(R.string.crossword_subtitle)
+                navView.setCheckedItem(R.id.nav_crossword)
+                refreshCrosswordStats()
             }
         }
     }
@@ -579,6 +683,19 @@ class MainActivity : AppCompatActivity() {
                 .setNegativeButton(R.string.cancel, null)
                 .show()
         }
+
+        // Crossword Listeners
+        btnCrosswordHint.setOnClickListener {
+            handleCrosswordHint()
+        }
+        btnNewCrosswordGame.setOnClickListener {
+            startNewCrosswordGame()
+        }
+        btnCrosswordHistory.setOnClickListener {
+            showCrosswordHistoryDialog()
+        }
+
+        setupCrosswordCellListeners()
     }
 
     private fun startNewGame() {
@@ -1048,6 +1165,28 @@ class MainActivity : AppCompatActivity() {
         outState.putBoolean(KEY_REARRANGE_IS_GAME_OVER, rearrangeEngine.isGameOver)
         outState.putStringArrayList(KEY_REARRANGE_FOUND_WORDS, ArrayList(rearrangeEngine.foundWords))
         outState.putString(KEY_REARRANGE_STATUS, tvRearrangeStatus.text.toString())
+
+        // Save Crossword state
+        outState.putString(KEY_CROSSWORD_A1, crosswordEngine.across1)
+        outState.putString(KEY_CROSSWORD_A2, crosswordEngine.across2)
+        outState.putString(KEY_CROSSWORD_D1, crosswordEngine.down1)
+        outState.putString(KEY_CROSSWORD_D2, crosswordEngine.down2)
+        outState.putInt(KEY_CROSSWORD_POINTS, crosswordEngine.points)
+        outState.putInt(KEY_CROSSWORD_CORRECT_COUNT, crosswordEngine.correctGuessesCount)
+        outState.putInt(KEY_CROSSWORD_HINTS, crosswordEngine.hintsTaken)
+        outState.putBoolean(KEY_CROSSWORD_IS_GAME_OVER, crosswordEngine.isGameOver)
+
+        val cellData = ArrayList<String>()
+        for (coord in crosswordCoords) {
+            val cell = crosswordEngine.cells[coord]
+            if (cell != null) {
+                // serialized: row|col|solutionChar|userChar|isExposed|isCorrectlyGuessedByUser|cellNumber
+                val u = cell.userChar?.toString() ?: "_"
+                val num = cell.cellNumber?.toString() ?: "0"
+                cellData.add("${cell.row}|${cell.col}|${cell.solutionChar}|$u|${cell.isExposed}|${cell.isCorrectlyGuessedByUser}|$num")
+            }
+        }
+        outState.putStringArrayList(KEY_CROSSWORD_CELLS_DATA, cellData)
     }
 
     private fun restoreAllState(bundle: Bundle) {
@@ -1183,6 +1322,40 @@ class MainActivity : AppCompatActivity() {
         }
         updateRearrangeViews()
         tvRearrangeStatus.text = bundle.getString(KEY_REARRANGE_STATUS) ?: "Rearrange into other valid words!"
+
+        // Restore Crossword
+        val cwA1 = bundle.getString(KEY_CROSSWORD_A1) ?: ""
+        val cwA2 = bundle.getString(KEY_CROSSWORD_A2) ?: ""
+        val cwD1 = bundle.getString(KEY_CROSSWORD_D1) ?: ""
+        val cwD2 = bundle.getString(KEY_CROSSWORD_D2) ?: ""
+        val cwPts = bundle.getInt(KEY_CROSSWORD_POINTS, 0)
+        val cwCorrect = bundle.getInt(KEY_CROSSWORD_CORRECT_COUNT, 0)
+        val cwHints = bundle.getInt(KEY_CROSSWORD_HINTS, 0)
+        val cwGameOver = bundle.getBoolean(KEY_CROSSWORD_IS_GAME_OVER, false)
+
+        val cellDataStrings = bundle.getStringArrayList(KEY_CROSSWORD_CELLS_DATA)
+        if (!cellDataStrings.isNullOrEmpty() && cwA1.isNotEmpty()) {
+            val restoredList = mutableListOf<CrosswordCellState>()
+            for (str in cellDataStrings) {
+                val parts = str.split("|")
+                if (parts.size >= 7) {
+                    val r = parts[0].toInt()
+                    val c = parts[1].toInt()
+                    val sol = parts[2].first()
+                    val uChar = if (parts[3] != "_") parts[3].first() else null
+                    val exposed = parts[4].toBoolean()
+                    val guessed = parts[5].toBoolean()
+                    val num = if (parts[6] != "0") parts[6].toInt() else null
+                    restoredList.add(CrosswordCellState(r, c, sol, uChar, exposed, guessed, num))
+                }
+            }
+            crosswordEngine.restoreState(cwA1, cwA2, cwD1, cwD2, restoredList, cwPts, cwCorrect, cwHints, cwGameOver)
+            renderCrosswordGridFromState()
+            updateCrosswordCluesUI()
+        } else {
+            startNewCrosswordGame()
+        }
+        refreshCrosswordStats()
 
         // Restore active game mode
         val activeGame = bundle.getString(KEY_ACTIVE_GAME) ?: GAME_GUESS_WORD
@@ -1730,4 +1903,582 @@ class MainActivity : AppCompatActivity() {
         dialog.show()
     }
 
+
+    // ==========================================
+    // Crossword Game Mechanics
+    // ==========================================
+
+    private fun bindCrosswordCell(row: Int, col: Int, etId: Int, frameId: Int, tvNumId: Int? = null) {
+        val et: EditText = findViewById(etId)
+        val frame: FrameLayout = findViewById(frameId)
+        val pair = Pair(row, col)
+
+        etCrosswordCellMap[pair] = et
+        frameCrosswordCellMap[pair] = frame
+
+        if (tvNumId != null) {
+            val tvNum: TextView = findViewById(tvNumId)
+            tvCrosswordNumMap[pair] = tvNum
+        }
+    }
+
+    private fun setupCrosswordCellListeners() {
+        for (coord in crosswordCoords) {
+            val et = etCrosswordCellMap[coord] ?: continue
+            val frame = frameCrosswordCellMap[coord] ?: continue
+            val r = coord.first
+            val c = coord.second
+
+            et.addTextChangedListener(object : android.text.TextWatcher {
+                override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+                override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
+                override fun afterTextChanged(s: android.text.Editable?) {
+                    if (isProgrammaticCrosswordCellUpdate) return
+                    val text = s?.toString()?.trim() ?: ""
+                    if (text.isEmpty()) {
+                        crosswordEngine.clearLetter(r, c)
+                        frame.setBackgroundResource(R.drawable.bg_crossword_cell)
+                        return
+                    }
+
+                    val char = text.first().uppercaseChar()
+                    val result = crosswordEngine.enterLetter(r, c, char)
+
+                    when (result) {
+                        is CrosswordLetterResult.Correct -> {
+                            frame.setBackgroundResource(R.drawable.bg_crossword_cell_correct)
+                            tvCrosswordScore.text = "Score: ${crosswordEngine.points} pts"
+                            if (result.newlyAwarded) {
+                                tvCrosswordStatus.text = "✓ Correct letter '$char'! +20 points awarded!"
+                                tvCrosswordStatus.setTextColor(ContextCompat.getColor(this@MainActivity, R.color.success_green))
+                            }
+                            if (result.isPuzzleCompleted) {
+                                onCrosswordCompleted()
+                                return
+                            }
+                            // Auto-advance to next blank cell
+                            advanceToNextBlankCell(coord)
+                        }
+                        is CrosswordLetterResult.Incorrect -> {
+                            frame.setBackgroundResource(R.drawable.bg_crossword_cell)
+                            tvCrosswordStatus.text = "'$char' is not correct in this cell. Try another!"
+                            tvCrosswordStatus.setTextColor(ContextCompat.getColor(this@MainActivity, R.color.danger_red))
+                        }
+                        is CrosswordLetterResult.CellReadOnly -> {
+                            // Ignored because cell is readonly
+                        }
+                    }
+                }
+            })
+
+            et.setOnKeyListener { _, keyCode, event ->
+                if (event.action == KeyEvent.ACTION_DOWN && keyCode == KeyEvent.KEYCODE_DEL) {
+                    if (et.text.isNullOrEmpty()) {
+                        // Move focus to previous editable cell
+                        val idx = crosswordCoords.indexOf(coord)
+                        if (idx > 0) {
+                            val prev = crosswordCoords[idx - 1]
+                            val prevCell = crosswordEngine.cells[prev]
+                            if (prevCell?.isExposed != true) {
+                                val prevEt = etCrosswordCellMap[prev]
+                                prevEt?.requestFocus()
+                                prevEt?.text?.clear()
+                                crosswordEngine.clearLetter(prev.first, prev.second)
+                                frameCrosswordCellMap[prev]?.setBackgroundResource(R.drawable.bg_crossword_cell)
+                            }
+                        }
+                    } else {
+                        crosswordEngine.clearLetter(r, c)
+                        frame.setBackgroundResource(R.drawable.bg_crossword_cell)
+                    }
+                }
+                false
+            }
+        }
+    }
+
+    private fun advanceToNextBlankCell(current: Pair<Int, Int>) {
+        val currIdx = crosswordCoords.indexOf(current)
+        for (i in 1..crosswordCoords.size) {
+            val checkIdx = (currIdx + i) % crosswordCoords.size
+            val targetCoord = crosswordCoords[checkIdx]
+            val cell = crosswordEngine.cells[targetCoord]
+            if (cell != null && !cell.isSolved) {
+                etCrosswordCellMap[targetCoord]?.requestFocus()
+                return
+            }
+        }
+    }
+
+    private fun startNewCrosswordGame() {
+        val success = crosswordEngine.startNewGame()
+        if (!success) {
+            Toast.makeText(this, "Could not generate crossword puzzle. Retrying...", Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        renderCrosswordGridFromState()
+        updateCrosswordCluesUI()
+        refreshCrosswordStats()
+
+        tvCrosswordScore.text = "Score: 0 pts"
+        tvCrosswordStatus.text = "Fill in all 4 words! +20 pts for each correct letter guessed."
+        tvCrosswordStatus.setTextColor(ContextCompat.getColor(this, R.color.text_secondary))
+        btnCrosswordHint.isEnabled = true
+
+        // Focus first cell
+        etCrosswordCellMap[crosswordCoords.first()]?.requestFocus()
+    }
+
+    private fun renderCrosswordGridFromState() {
+        isProgrammaticCrosswordCellUpdate = true
+        for (coord in crosswordCoords) {
+            val cell = crosswordEngine.cells[coord] ?: continue
+            val et = etCrosswordCellMap[coord] ?: continue
+            val frame = frameCrosswordCellMap[coord] ?: continue
+
+            et.isEnabled = !cell.isExposed
+            if (cell.userChar != null) {
+                et.setText(cell.userChar.toString())
+            } else {
+                et.text.clear()
+            }
+
+            when {
+                cell.isExposed -> {
+                    frame.setBackgroundResource(R.drawable.bg_crossword_cell_exposed)
+                    et.setTextColor(ContextCompat.getColor(this, R.color.tracker_amber_stroke))
+                }
+                cell.isSolved -> {
+                    frame.setBackgroundResource(R.drawable.bg_crossword_cell_correct)
+                    et.setTextColor(ContextCompat.getColor(this, R.color.success_green))
+                }
+                else -> {
+                    frame.setBackgroundResource(R.drawable.bg_crossword_cell)
+                    et.setTextColor(ContextCompat.getColor(this, R.color.text_primary))
+                }
+            }
+        }
+        isProgrammaticCrosswordCellUpdate = false
+        tvCrosswordScore.text = "Score: ${crosswordEngine.points} pts"
+    }
+
+    private fun updateCrosswordCluesUI() {
+        val clues = crosswordEngine.clues
+        val a1 = clues.find { it.number == 1 && it.direction == com.example.vocabgame.model.ClueDirection.ACROSS }
+        val a2 = clues.find { it.number == 3 && it.direction == com.example.vocabgame.model.ClueDirection.ACROSS }
+        val d1 = clues.find { it.number == 1 && it.direction == com.example.vocabgame.model.ClueDirection.DOWN }
+        val d2 = clues.find { it.number == 2 && it.direction == com.example.vocabgame.model.ClueDirection.DOWN }
+
+        tvClueAcross1.text = "1 Across (4 letters): ${a1?.clueText ?: "Across word"}"
+        tvClueAcross2.text = "3 Across (4 letters): ${a2?.clueText ?: "Across word"}"
+        tvClueDown1.text = "1 Down (4 letters): ${d1?.clueText ?: "Down word"}"
+        tvClueDown2.text = "2 Down (4 letters): ${d2?.clueText ?: "Down word"}"
+    }
+
+    private fun handleCrosswordHint() {
+        if (crosswordEngine.isGameOver) {
+            Toast.makeText(this, "Crossword already solved! Start a new puzzle.", Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        val exposed = crosswordEngine.exposeRandomHint()
+        if (exposed == null) {
+            Toast.makeText(this, "No blank cells remaining to reveal!", Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        val pair = Pair(exposed.row, exposed.col)
+        isProgrammaticCrosswordCellUpdate = true
+        val et = etCrosswordCellMap[pair]
+        val frame = frameCrosswordCellMap[pair]
+
+        et?.setText(exposed.solutionChar.toString())
+        et?.isEnabled = false
+        et?.setTextColor(ContextCompat.getColor(this, R.color.tracker_amber_stroke))
+        frame?.setBackgroundResource(R.drawable.bg_crossword_cell_exposed)
+        isProgrammaticCrosswordCellUpdate = false
+
+        tvCrosswordScore.text = "Score: ${crosswordEngine.points} pts"
+        tvCrosswordStatus.text = "💡 Letter '${exposed.solutionChar}' revealed (-10 pts penalty). Cell is now read-only."
+        tvCrosswordStatus.setTextColor(ContextCompat.getColor(this, R.color.tracker_amber))
+
+        if (crosswordEngine.isGameOver) {
+            onCrosswordCompleted()
+        } else {
+            advanceToNextBlankCell(pair)
+        }
+    }
+
+    private fun onCrosswordCompleted() {
+        btnCrosswordHint.isEnabled = false
+        val pts = crosswordEngine.points
+        val correct = crosswordEngine.correctGuessesCount
+        val hints = crosswordEngine.hintsTaken
+        val a1 = crosswordEngine.across1
+        val a2 = crosswordEngine.across2
+        val d1 = crosswordEngine.down1
+        val d2 = crosswordEngine.down2
+
+        // Record game in SQLite database
+        dbHelper.recordCrosswordGame(
+            across1 = a1,
+            across2 = a2,
+            down1 = d1,
+            down2 = d2,
+            correctGuesses = correct,
+            hintsTaken = hints,
+            points = pts,
+            isCompleted = true
+        )
+        refreshCrosswordStats()
+
+        showCrosswordOutcomeDialog(pts, correct, hints, a1, a2, d1, d2)
+    }
+
+    private fun refreshCrosswordStats() {
+        val stats = dbHelper.getCrosswordAggregatedStats()
+        tvCrosswordAvgGuesses.text = String.format(Locale.US, "%.1f", stats.averageCorrectGuessesPerGame)
+        tvCrosswordTotalPoints.text = "${stats.totalPoints} pts"
+        tvCrosswordTotalGames.text = stats.totalGames.toString()
+        tvCrosswordHintsTaken.text = stats.totalHintsTaken.toString()
+    }
+
+    private fun showCrosswordOutcomeDialog(
+        points: Int,
+        correctGuesses: Int,
+        hintsTaken: Int,
+        a1: String,
+        a2: String,
+        d1: String,
+        d2: String
+    ) {
+        val dialog = Dialog(this)
+        val density = resources.displayMetrics.density
+        val padding = (20 * density).toInt()
+
+        val card = MaterialCardView(this).apply {
+            radius = 20f * density
+            cardElevation = 6f * density
+            setStrokeColor(ContextCompat.getColor(this@MainActivity, R.color.primary_brand))
+            strokeWidth = (2 * density).toInt()
+            setCardBackgroundColor(ContextCompat.getColor(this@MainActivity, R.color.card_background))
+        }
+
+        val layout = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            gravity = Gravity.CENTER_HORIZONTAL
+            setPadding(padding, padding, padding, padding)
+        }
+
+        val titleView = TextView(this).apply {
+            text = "🎉 Crossword Completed!"
+            textSize = 20f
+            typeface = Typeface.DEFAULT_BOLD
+            setTextColor(ContextCompat.getColor(this@MainActivity, R.color.text_primary))
+            gravity = Gravity.CENTER
+        }
+
+        val scoreBadge = TextView(this).apply {
+            text = "Final Score: ${if (points >= 0) "+" else ""}$points pts\n(Stored in SQLite Database)"
+            textSize = 15f
+            typeface = Typeface.DEFAULT_BOLD
+            setTextColor(ContextCompat.getColor(this@MainActivity, R.color.success_green))
+            gravity = Gravity.CENTER
+            setPadding(0, (6 * density).toInt(), 0, (10 * density).toInt())
+        }
+
+        val statsSummary = TextView(this).apply {
+            text = "• Correct Letter Guesses: $correctGuesses / 12 (+${correctGuesses * 20} pts)\n• Hints Used: $hintsTaken (-${hintsTaken * 10} pts)\n• Lifetime Avg Guesses/Game: ${tvCrosswordAvgGuesses.text}"
+            textSize = 13f
+            setTextColor(ContextCompat.getColor(this@MainActivity, R.color.text_primary))
+            gravity = Gravity.START
+            setPadding(0, 0, 0, (12 * density).toInt())
+            setLineSpacing(2f * density, 1f)
+        }
+
+        val wordsHeader = TextView(this).apply {
+            text = "Words in this Crossword:"
+            textSize = 14f
+            typeface = Typeface.DEFAULT_BOLD
+            setTextColor(ContextCompat.getColor(this@MainActivity, R.color.primary_brand))
+            setPadding(0, 0, 0, (6 * density).toInt())
+        }
+
+        val scrollContainer = android.widget.ScrollView(this).apply {
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                (170 * density).toInt()
+            )
+        }
+        val wordsListLayout = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+        }
+
+        val wordDefs = listOf(
+            Pair("1 Across: $a1", WordMeanings.getMeaning(a1)),
+            Pair("3 Across: $a2", WordMeanings.getMeaning(a2)),
+            Pair("1 Down: $d1", WordMeanings.getMeaning(d1)),
+            Pair("2 Down: $d2", WordMeanings.getMeaning(d2))
+        )
+
+        for (wd in wordDefs) {
+            val itemCard = LinearLayout(this).apply {
+                orientation = LinearLayout.VERTICAL
+                setPadding((8 * density).toInt(), (4 * density).toInt(), (8 * density).toInt(), (6 * density).toInt())
+                setBackgroundResource(R.drawable.bg_stat_cell)
+                val lp = LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.MATCH_PARENT,
+                    LinearLayout.LayoutParams.WRAP_CONTENT
+                )
+                lp.bottomMargin = (4 * density).toInt()
+                layoutParams = lp
+            }
+            val wTv = TextView(this).apply {
+                text = wd.first
+                textSize = 13f
+                typeface = Typeface.MONOSPACE
+                setTypeface(typeface, Typeface.BOLD)
+                setTextColor(ContextCompat.getColor(this@MainActivity, R.color.text_primary))
+            }
+            val mTv = TextView(this).apply {
+                text = wd.second
+                textSize = 11.5f
+                setTextColor(ContextCompat.getColor(this@MainActivity, R.color.text_secondary))
+            }
+            itemCard.addView(wTv)
+            itemCard.addView(mTv)
+            wordsListLayout.addView(itemCard)
+        }
+        scrollContainer.addView(wordsListLayout)
+
+        val buttonRow = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER
+            setPadding(0, (12 * density).toInt(), 0, 0)
+        }
+
+        val btnReviewBoard = com.google.android.material.button.MaterialButton(
+            this, null, com.google.android.material.R.attr.borderlessButtonStyle
+        ).apply {
+            text = "Review Board"
+            textSize = 13f
+            setTextColor(ContextCompat.getColor(this@MainActivity, R.color.primary_brand))
+            setOnClickListener { dialog.dismiss() }
+        }
+
+        val btnPlayNext = com.google.android.material.button.MaterialButton(this).apply {
+            text = "Play Next Puzzle"
+            textSize = 13f
+            cornerRadius = (10 * density).toInt()
+            setBackgroundColor(ContextCompat.getColor(this@MainActivity, R.color.primary_brand))
+            setOnClickListener {
+                dialog.dismiss()
+                startNewCrosswordGame()
+            }
+        }
+
+        val btnParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f).apply {
+            marginEnd = (4 * density).toInt()
+        }
+        val btnNextParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1.2f).apply {
+            marginStart = (4 * density).toInt()
+        }
+        btnReviewBoard.layoutParams = btnParams
+        btnPlayNext.layoutParams = btnNextParams
+
+        buttonRow.addView(btnReviewBoard)
+        buttonRow.addView(btnPlayNext)
+
+        layout.addView(titleView)
+        layout.addView(scoreBadge)
+        layout.addView(statsSummary)
+        layout.addView(wordsHeader)
+        layout.addView(scrollContainer)
+        layout.addView(buttonRow)
+        card.addView(layout)
+
+        dialog.setContentView(card)
+        dialog.window?.setBackgroundDrawableResource(android.R.color.transparent)
+        dialog.setCancelable(false)
+        dialog.show()
+    }
+
+    private fun showCrosswordHistoryDialog() {
+        val dialog = Dialog(this)
+        val density = resources.displayMetrics.density
+        val padding = (20 * density).toInt()
+
+        val card = MaterialCardView(this).apply {
+            radius = 18f * density
+            cardElevation = 6f * density
+            setStrokeColor(ContextCompat.getColor(this@MainActivity, R.color.card_stroke))
+            strokeWidth = (1.5f * density).toInt()
+            setCardBackgroundColor(ContextCompat.getColor(this@MainActivity, R.color.card_background))
+        }
+
+        val layout = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(padding, padding, padding, padding)
+        }
+
+        val titleView = TextView(this).apply {
+            text = getString(R.string.crossword_dialog_history_title)
+            textSize = 18f
+            typeface = Typeface.DEFAULT_BOLD
+            setTextColor(ContextCompat.getColor(this@MainActivity, R.color.text_primary))
+        }
+
+        val stats = dbHelper.getCrosswordAggregatedStats()
+        val subtitleView = TextView(this).apply {
+            text = "Lifetime Games: ${stats.totalGames} • Avg Correct Guesses: ${String.format(Locale.US, "%.1f", stats.averageCorrectGuessesPerGame)} • Total Pts: ${stats.totalPoints}"
+            textSize = 12f
+            setTextColor(ContextCompat.getColor(this@MainActivity, R.color.text_secondary))
+            setPadding(0, (2 * density).toInt(), 0, (12 * density).toInt())
+        }
+
+        val historyList = dbHelper.getCrosswordHistory(50)
+        val rvHistory = RecyclerView(this).apply {
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                (320 * density).toInt()
+            )
+            layoutManager = LinearLayoutManager(this@MainActivity)
+        }
+
+        val adapter = CrosswordHistoryAdapter { record ->
+            showCrosswordHistoryDetailsDialog(record)
+        }
+        rvHistory.adapter = adapter
+        adapter.submitList(historyList)
+
+        val emptyView = TextView(this).apply {
+            text = getString(R.string.crossword_history_empty)
+            textSize = 13f
+            setTextColor(ContextCompat.getColor(this@MainActivity, R.color.text_secondary))
+            gravity = Gravity.CENTER
+            setPadding(0, (40 * density).toInt(), 0, (40 * density).toInt())
+            visibility = if (historyList.isEmpty()) View.VISIBLE else View.GONE
+        }
+
+        val btnClose = com.google.android.material.button.MaterialButton(this).apply {
+            text = "Close"
+            textSize = 14f
+            cornerRadius = (10 * density).toInt()
+            setBackgroundColor(ContextCompat.getColor(this@MainActivity, R.color.primary_brand))
+            setOnClickListener { dialog.dismiss() }
+        }
+
+        layout.addView(titleView)
+        layout.addView(subtitleView)
+        if (historyList.isEmpty()) {
+            layout.addView(emptyView)
+        } else {
+            layout.addView(rvHistory)
+        }
+        layout.addView(btnClose)
+        card.addView(layout)
+
+        dialog.setContentView(card)
+        dialog.window?.setBackgroundDrawableResource(android.R.color.transparent)
+        dialog.show()
+    }
+
+    private fun showCrosswordHistoryDetailsDialog(record: CrosswordRecord) {
+        val dialog = Dialog(this)
+        val density = resources.displayMetrics.density
+        val padding = (20 * density).toInt()
+
+        val card = MaterialCardView(this).apply {
+            radius = 18f * density
+            cardElevation = 6f * density
+            setStrokeColor(ContextCompat.getColor(this@MainActivity, R.color.card_stroke))
+            strokeWidth = (1.5f * density).toInt()
+            setCardBackgroundColor(ContextCompat.getColor(this@MainActivity, R.color.card_background))
+        }
+
+        val layout = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(padding, padding, padding, padding)
+        }
+
+        val titleView = TextView(this).apply {
+            text = "Crossword Record"
+            textSize = 18f
+            typeface = Typeface.DEFAULT_BOLD
+            setTextColor(ContextCompat.getColor(this@MainActivity, R.color.text_primary))
+        }
+
+        val subtitleView = TextView(this).apply {
+            text = "Score: ${if (record.points >= 0) "+" else ""}${record.points} pts • Correct Guesses: ${record.correctGuesses}/12 • Hints: ${record.hintsTaken}"
+            textSize = 12f
+            setTextColor(ContextCompat.getColor(this@MainActivity, R.color.text_secondary))
+            setPadding(0, (2 * density).toInt(), 0, (10 * density).toInt())
+        }
+
+        val scrollContainer = android.widget.ScrollView(this).apply {
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                (250 * density).toInt()
+            )
+        }
+        val wordsListLayout = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+        }
+
+        val wordDefs = listOf(
+            Pair("1 Across: ${record.across1}", WordMeanings.getMeaning(record.across1)),
+            Pair("3 Across: ${record.across2}", WordMeanings.getMeaning(record.across2)),
+            Pair("1 Down: ${record.down1}", WordMeanings.getMeaning(record.down1)),
+            Pair("2 Down: ${record.down2}", WordMeanings.getMeaning(record.down2))
+        )
+
+        for (wd in wordDefs) {
+            val itemCard = LinearLayout(this).apply {
+                orientation = LinearLayout.VERTICAL
+                setPadding((8 * density).toInt(), (6 * density).toInt(), (8 * density).toInt(), (6 * density).toInt())
+                setBackgroundResource(R.drawable.bg_stat_cell)
+                val lp = LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.MATCH_PARENT,
+                    LinearLayout.LayoutParams.WRAP_CONTENT
+                )
+                lp.bottomMargin = (6 * density).toInt()
+                layoutParams = lp
+            }
+            val wTv = TextView(this).apply {
+                text = wd.first
+                textSize = 13.5f
+                typeface = Typeface.MONOSPACE
+                setTypeface(typeface, Typeface.BOLD)
+                setTextColor(ContextCompat.getColor(this@MainActivity, R.color.text_primary))
+            }
+            val mTv = TextView(this).apply {
+                text = wd.second
+                textSize = 11.5f
+                setTextColor(ContextCompat.getColor(this@MainActivity, R.color.text_secondary))
+            }
+            itemCard.addView(wTv)
+            itemCard.addView(mTv)
+            wordsListLayout.addView(itemCard)
+        }
+        scrollContainer.addView(wordsListLayout)
+
+        val btnClose = com.google.android.material.button.MaterialButton(this).apply {
+            text = "Back"
+            textSize = 14f
+            cornerRadius = (10 * density).toInt()
+            setBackgroundColor(ContextCompat.getColor(this@MainActivity, R.color.primary_brand))
+            setOnClickListener { dialog.dismiss() }
+        }
+
+        layout.addView(titleView)
+        layout.addView(subtitleView)
+        layout.addView(scrollContainer)
+        layout.addView(btnClose)
+        card.addView(layout)
+
+        dialog.setContentView(card)
+        dialog.window?.setBackgroundDrawableResource(android.R.color.transparent)
+        dialog.show()
+    }
 }

@@ -115,4 +115,21 @@
         <item quantity="one">(%1$d in place)</item>
         <item quantity="other">(%1$d in place)</item>
     </plurals>
+    <!-- Crossword Strings -->
+    <string name="nav_crossword">Crossword</string>
+    <string name="game_title_crossword">Crossword Puzzle</string>
+    <string name="crossword_subtitle">4 interconnected 4-letter words with minimal space</string>
+    <string name="btn_crossword_hint">Reveal Letter (-10 pts)</string>
+    <string name="btn_crossword_new">New Puzzle</string>
+    <string name="btn_crossword_history">Stats / History</string>
+    <string name="crossword_across_title">Across (Horizontal)</string>
+    <string name="crossword_down_title">Down (Vertical)</string>
+    <string name="crossword_stat_total_games">Games Played</string>
+    <string name="crossword_stat_avg_guesses">Avg Correct Guesses</string>
+    <string name="crossword_stat_total_pts">Total Points</string>
+    <string name="crossword_stat_hints">Hints Taken</string>
+    <string name="crossword_dialog_history_title">Crossword Statistics &amp; History</string>
+    <string name="crossword_history_empty">No completed crossword games in the database yet.</string>
+    <string name="confirm_reset_crossword_stats_title">Reset Crossword Stats?</string>
+    <string name="confirm_reset_crossword_stats_msg">This will clear all historical crossword logs and reset your stats to 0.</string>
 </resources>

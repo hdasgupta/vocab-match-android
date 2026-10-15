@@ -428,6 +428,8 @@ object WordMeanings {
         "ZONE" to "An area or stretch of territory having a specified boundary or use."
     )
 
+    fun hasMeaning(word: String): Boolean = meaningsMap.containsKey(word.trim().uppercase(Locale.US))
+
     fun getMeaning(word: String): String {
         val upper = word.trim().uppercase(Locale.US)
         

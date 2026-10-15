@@ -6,6 +6,8 @@ import android.database.sqlite.SQLiteDatabase
 import android.database.sqlite.SQLiteOpenHelper
 import com.example.vocabgame.model.ChainGameStats
 import com.example.vocabgame.model.GameStats
+import com.example.vocabgame.model.CrosswordGameStats
+import com.example.vocabgame.model.CrosswordRecord
 import com.example.vocabgame.model.RearrangeGameStats
 import com.example.vocabgame.model.RearrangeRecord
 
@@ -21,7 +23,29 @@ class DatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME
 
     companion object {
         const val DATABASE_NAME = "vocab_game.db"
-        const val DATABASE_VERSION = 4
+        const val DATABASE_VERSION = 5
+
+        // ==========================================
+        // 4. Crossword Tables
+        // ==========================================
+        const val TABLE_CROSSWORD_GAMES = "crossword_game_records"
+        const val COL_CROSSWORD_ID = "id"
+        const val COL_CROSSWORD_ACROSS1 = "across1"
+        const val COL_CROSSWORD_ACROSS2 = "across2"
+        const val COL_CROSSWORD_DOWN1 = "down1"
+        const val COL_CROSSWORD_DOWN2 = "down2"
+        const val COL_CROSSWORD_CORRECT_GUESSES = "correct_guesses"
+        const val COL_CROSSWORD_HINTS_TAKEN = "hints_taken"
+        const val COL_CROSSWORD_POINTS = "points"
+        const val COL_CROSSWORD_COMPLETED = "is_completed"
+        const val COL_CROSSWORD_TIMESTAMP = "timestamp"
+
+        const val TABLE_CROSSWORD_AGGREGATED = "crossword_aggregated_stats"
+        const val COL_CROSSWORD_AGG_ID = "id"
+        const val COL_TOTAL_CROSSWORD_GAMES = "total_games"
+        const val COL_TOTAL_CROSSWORD_CORRECT_GUESSES = "total_correct_guesses"
+        const val COL_TOTAL_CROSSWORD_HINTS_TAKEN = "total_hints_taken"
+        const val COL_TOTAL_CROSSWORD_POINTS = "total_points"
 
         // ==========================================
         // 1. Guess Word Tables
@@ -109,6 +133,7 @@ class DatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME
 
         createChainTables(db)
         createRearrangeTables(db)
+        createCrosswordTables(db)
     }
 
     private fun createChainTables(db: SQLiteDatabase) {
@@ -179,6 +204,45 @@ class DatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME
         db.insertWithOnConflict(TABLE_REARRANGE_AGGREGATED, null, rearrangeInitial, SQLiteDatabase.CONFLICT_IGNORE)
     }
 
+    private fun createCrosswordTables(db: SQLiteDatabase) {
+        // Table 7: Crossword historical game records
+        db.execSQL("""
+            CREATE TABLE IF NOT EXISTS $TABLE_CROSSWORD_GAMES (
+                $COL_CROSSWORD_ID INTEGER PRIMARY KEY AUTOINCREMENT,
+                $COL_CROSSWORD_ACROSS1 TEXT NOT NULL,
+                $COL_CROSSWORD_ACROSS2 TEXT NOT NULL,
+                $COL_CROSSWORD_DOWN1 TEXT NOT NULL,
+                $COL_CROSSWORD_DOWN2 TEXT NOT NULL,
+                $COL_CROSSWORD_CORRECT_GUESSES INTEGER NOT NULL,
+                $COL_CROSSWORD_HINTS_TAKEN INTEGER NOT NULL,
+                $COL_CROSSWORD_POINTS INTEGER NOT NULL,
+                $COL_CROSSWORD_COMPLETED INTEGER NOT NULL,
+                $COL_CROSSWORD_TIMESTAMP INTEGER NOT NULL
+            );
+        """.trimIndent())
+
+        // Table 8: Crossword aggregated totals
+        db.execSQL("""
+            CREATE TABLE IF NOT EXISTS $TABLE_CROSSWORD_AGGREGATED (
+                $COL_CROSSWORD_AGG_ID INTEGER PRIMARY KEY,
+                $COL_TOTAL_CROSSWORD_GAMES INTEGER DEFAULT 0,
+                $COL_TOTAL_CROSSWORD_CORRECT_GUESSES INTEGER DEFAULT 0,
+                $COL_TOTAL_CROSSWORD_HINTS_TAKEN INTEGER DEFAULT 0,
+                $COL_TOTAL_CROSSWORD_POINTS INTEGER DEFAULT 0
+            );
+        """.trimIndent())
+
+        val crosswordInitial = ContentValues().apply {
+            put(COL_CROSSWORD_AGG_ID, 1)
+            put(COL_TOTAL_CROSSWORD_GAMES, 0)
+            put(COL_TOTAL_CROSSWORD_CORRECT_GUESSES, 0)
+            put(COL_TOTAL_CROSSWORD_HINTS_TAKEN, 0)
+            put(COL_TOTAL_CROSSWORD_POINTS, 0)
+        }
+        db.insertWithOnConflict(TABLE_CROSSWORD_AGGREGATED, null, crosswordInitial, SQLiteDatabase.CONFLICT_IGNORE)
+    }
+
+
     override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
         if (oldVersion < 2) {
             createChainTables(db)
@@ -192,6 +256,9 @@ class DatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME
             } catch (e: Exception) {
                 // Column might already exist
             }
+        }
+        if (oldVersion < 5) {
+            createCrosswordTables(db)
         }
     }
 
@@ -479,6 +546,134 @@ class DatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME
                 put(COL_TOTAL_REARRANGE_POINTS, 0)
             }
             db.update(TABLE_REARRANGE_AGGREGATED, resetValues, "$COL_REARRANGE_AGG_ID = ?", arrayOf("1"))
+            db.setTransactionSuccessful()
+        } finally {
+            db.endTransaction()
+        }
+    }
+
+    // ==========================================
+    // 4. Crossword Methods
+    // ==========================================
+
+    @Synchronized
+    fun recordCrosswordGame(
+        across1: String,
+        across2: String,
+        down1: String,
+        down2: String,
+        correctGuesses: Int,
+        hintsTaken: Int,
+        points: Int,
+        isCompleted: Boolean
+    ) {
+        val db = writableDatabase
+        db.beginTransaction()
+        try {
+            val recordValues = ContentValues().apply {
+                put(COL_CROSSWORD_ACROSS1, across1)
+                put(COL_CROSSWORD_ACROSS2, across2)
+                put(COL_CROSSWORD_DOWN1, down1)
+                put(COL_CROSSWORD_DOWN2, down2)
+                put(COL_CROSSWORD_CORRECT_GUESSES, correctGuesses)
+                put(COL_CROSSWORD_HINTS_TAKEN, hintsTaken)
+                put(COL_CROSSWORD_POINTS, points)
+                put(COL_CROSSWORD_COMPLETED, if (isCompleted) 1 else 0)
+                put(COL_CROSSWORD_TIMESTAMP, System.currentTimeMillis())
+            }
+            db.insert(TABLE_CROSSWORD_GAMES, null, recordValues)
+
+            db.execSQL("""
+                UPDATE $TABLE_CROSSWORD_AGGREGATED
+                SET $COL_TOTAL_CROSSWORD_GAMES = $COL_TOTAL_CROSSWORD_GAMES + 1,
+                    $COL_TOTAL_CROSSWORD_CORRECT_GUESSES = $COL_TOTAL_CROSSWORD_CORRECT_GUESSES + ?,
+                    $COL_TOTAL_CROSSWORD_HINTS_TAKEN = $COL_TOTAL_CROSSWORD_HINTS_TAKEN + ?,
+                    $COL_TOTAL_CROSSWORD_POINTS = $COL_TOTAL_CROSSWORD_POINTS + ?
+                WHERE $COL_CROSSWORD_AGG_ID = 1
+            """.trimIndent(), arrayOf(correctGuesses, hintsTaken, points))
+
+            db.setTransactionSuccessful()
+        } finally {
+            db.endTransaction()
+        }
+    }
+
+    fun getCrosswordAggregatedStats(): CrosswordGameStats {
+        val db = readableDatabase
+        val cursor = db.rawQuery(
+            "SELECT $COL_TOTAL_CROSSWORD_GAMES, $COL_TOTAL_CROSSWORD_CORRECT_GUESSES, $COL_TOTAL_CROSSWORD_HINTS_TAKEN, $COL_TOTAL_CROSSWORD_POINTS FROM $TABLE_CROSSWORD_AGGREGATED WHERE $COL_CROSSWORD_AGG_ID = 1",
+            null
+        )
+
+        var totalGames = 0
+        var totalCorrect = 0
+        var totalHints = 0
+        var totalPoints = 0
+
+        cursor.use {
+            if (it.moveToFirst()) {
+                totalGames = it.getInt(0)
+                totalCorrect = it.getInt(1)
+                totalHints = it.getInt(2)
+                totalPoints = it.getInt(3)
+            }
+        }
+
+        val avgCorrect = if (totalGames > 0) totalCorrect.toDouble() / totalGames else 0.0
+        val avgPoints = if (totalGames > 0) totalPoints.toDouble() / totalGames else 0.0
+
+        return CrosswordGameStats(
+            totalGames = totalGames,
+            totalCorrectGuesses = totalCorrect,
+            totalHintsTaken = totalHints,
+            totalPoints = totalPoints,
+            averageCorrectGuessesPerGame = avgCorrect,
+            averagePointsPerGame = avgPoints
+        )
+    }
+
+    fun getCrosswordHistory(limit: Int = 50): List<CrosswordRecord> {
+        val list = mutableListOf<CrosswordRecord>()
+        val db = readableDatabase
+        val cursor = db.rawQuery(
+            "SELECT $COL_CROSSWORD_ID, $COL_CROSSWORD_ACROSS1, $COL_CROSSWORD_ACROSS2, $COL_CROSSWORD_DOWN1, $COL_CROSSWORD_DOWN2, $COL_CROSSWORD_CORRECT_GUESSES, $COL_CROSSWORD_HINTS_TAKEN, $COL_CROSSWORD_POINTS, $COL_CROSSWORD_COMPLETED, $COL_CROSSWORD_TIMESTAMP FROM $TABLE_CROSSWORD_GAMES ORDER BY $COL_CROSSWORD_TIMESTAMP DESC LIMIT ?",
+            arrayOf(limit.toString())
+        )
+
+        cursor.use {
+            while (it.moveToNext()) {
+                list.add(
+                    CrosswordRecord(
+                        id = it.getLong(0),
+                        across1 = it.getString(1),
+                        across2 = it.getString(2),
+                        down1 = it.getString(3),
+                        down2 = it.getString(4),
+                        correctGuesses = it.getInt(5),
+                        hintsTaken = it.getInt(6),
+                        points = it.getInt(7),
+                        isCompleted = it.getInt(8) == 1,
+                        timestamp = it.getLong(9)
+                    )
+                )
+            }
+        }
+        return list
+    }
+
+    @Synchronized
+    fun resetCrosswordStats() {
+        val db = writableDatabase
+        db.beginTransaction()
+        try {
+            db.delete(TABLE_CROSSWORD_GAMES, null, null)
+            val resetValues = ContentValues().apply {
+                put(COL_TOTAL_CROSSWORD_GAMES, 0)
+                put(COL_TOTAL_CROSSWORD_CORRECT_GUESSES, 0)
+                put(COL_TOTAL_CROSSWORD_HINTS_TAKEN, 0)
+                put(COL_TOTAL_CROSSWORD_POINTS, 0)
+            }
+            db.update(TABLE_CROSSWORD_AGGREGATED, resetValues, "$COL_CROSSWORD_AGG_ID = ?", arrayOf("1"))
             db.setTransactionSuccessful()
         } finally {
             db.endTransaction()
