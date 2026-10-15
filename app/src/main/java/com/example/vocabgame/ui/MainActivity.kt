@@ -1414,7 +1414,7 @@ class MainActivity : AppCompatActivity() {
 
         val subtitleView = TextView(this).apply {
             text = "Historical records persisted in SQLite database"
-            textSize = 12sp.toFloat()
+            textSize = 12f
             setTextColor(ContextCompat.getColor(this@MainActivity, R.color.text_secondary))
             setPadding(0, (2 * density).toInt(), 0, (12 * density).toInt())
         }
