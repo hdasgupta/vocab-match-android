@@ -1565,7 +1565,10 @@
                                 android:gravity="center_vertical"
                                 android:layout_marginBottom="12dp">
 
-                                <div>
+                                <LinearLayout
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:orientation="vertical">
                                     <TextView
                                         android:layout_width="wrap_content"
                                         android:layout_height="wrap_content"
@@ -1580,7 +1583,7 @@
                                         android:text="@string/crossword_subtitle"
                                         android:textSize="12sp"
                                         android:textColor="@color/text_secondary" />
-                                </div>
+                                </LinearLayout>
 
                                 <Space
                                     android:layout_width="0dp"
